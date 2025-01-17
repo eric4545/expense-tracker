@@ -1,149 +1,114 @@
 # Expense Tracker
 
-A simple expense tracking application built with Vue.js that helps groups track and split expenses.
+A simple and intuitive expense tracking application built with Vue.js that helps groups track and split expenses. Perfect for trips, shared housing, or any situation where expenses need to be split between multiple people.
 
-> This project was created using Cursor's Agent Mode powered by Claude-3.5-sonnet.
+## 🌟 Features
 
-## Features
+- 📝 Create and manage multiple trips or expense groups
+- 💰 Add and edit expenses with dates and descriptions
+- 👥 Split expenses between group members
+- 🧮 Automatically calculate who owes whom
+- 💾 Export and import trip data
+- 🔄 Local storage for data persistence
+- 📱 Responsive design for mobile and desktop
 
-- Create and manage multiple trips
-- Add and edit expenses with dates
-- Split expenses between group members
-- Calculate who owes whom
-- Export and import trip data
-- Local storage for persistence
+## 🚀 Quick Start
 
-## Setup
+1. Clone the repository:
+```bash
+git clone https://github.com/eric4545/expense-tracker.git
+cd expense-tracker
+```
 
-1. Install dependencies:
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Start development server:
+3. Start development server:
 ```bash
 npm run dev
 ```
 
-3. Build for production:
+4. Build for production:
 ```bash
 npm run build
 ```
 
-## Deployment to GitHub Pages
+## 🔧 Development
 
-1. Update `vite.config.js` with your repository name:
-```js
-base: '/your-repo-name/'
-```
+### Prerequisites
 
-2. Build the project:
-```bash
-npm run build
-```
+- Node.js 20.x or higher
+- npm 10.x or higher
 
-3. Deploy to GitHub Pages:
-   - Push the `dist` folder to a new branch called `gh-pages`
-   - Or use GitHub Actions for automatic deployment (workflow provided below)
+### Available Scripts
 
-### GitHub Actions Workflow
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm test` - Run tests
+- `npm run coverage` - Run tests with coverage report
 
-Create `.github/workflows/deploy.yml`:
-```yaml
-name: Deploy to GitHub Pages
+## 📱 Usage
 
-on:
-  push:
-    branches: [ main ]
+1. Create a new trip/group
+2. Add members to the group
+3. Start adding expenses:
+   - Enter amount
+   - Select who paid
+   - Choose who to split with
+   - Add description and date
+4. View the settlement summary to see who owes whom
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+## 💾 Data Storage
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18'
+The application uses localStorage to persist data locally. You can:
+- Export data as JSON for backup
+- Import previous trips
+- Share trip data with other users
 
-      - name: Install Dependencies
-        run: npm install
+## 🤝 Contributing
 
-      - name: Build
-        run: npm run build
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-```
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## Testing
+### Code Style
 
-Run tests:
-```bash
-npm test
-```
+- Follow Vue.js style guide
+- Use ESLint for code linting
+- Write tests for new features
 
-Run tests with coverage:
-```bash
-npm run coverage
-```
+## 📄 License
 
-## Project Structure
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Vue.js](https://vuejs.org/)
+- Powered by [Vite](https://vitejs.dev/)
+- Styled with [Bootstrap](https://getbootstrap.com/)
+
+## 📊 Project Structure
 
 ```
 expense-tracker/
-├── src/
-│   ├── components/
-│   │   └── ExpenseTracker.vue
-│   └── main.js
-├── tests/
-│   └── ExpenseTracker.test.js
-├── public/
-├── index.html
-├── package.json
-├── vite.config.js
-└── README.md
+├── src/              # Source files
+│   ├── components/   # Vue components
+│   └── main.js       # Entry point
+├── tests/            # Test files
+├── public/           # Static assets
+└── dist/            # Built files
 ```
 
-## Test Cases
+## 🔍 Data Format
 
-The application includes tests for:
+For importing/exporting trip data, use this JSON format:
 
-1. Trip Management
-   - Creating new trips
-   - Loading existing trips
-
-2. Expense Calculations
-   - Total paid calculations
-   - Should pay calculations
-   - Balance calculations
-
-3. Member Management
-   - Adding new members
-   - Preventing duplicate members
-
-4. Expense Management
-   - Adding new expenses
-   - Input validation
-
-## Local Storage
-
-The application uses localStorage to persist:
-- Trip information
-- Member lists
-- Expense records
-
-Data can be exported and imported as JSON files.
-
-## Import/Export Data Format
-
-The application supports two formats for importing data:
-
-1. Single Trip Format:
 ```json
 {
   "tripName": "Trip Name",
@@ -160,27 +125,8 @@ The application supports two formats for importing data:
 }
 ```
 
-2. Multiple Trips Format:
-```json
-{
-  "tripList": [
-    {
-      "id": "trip-id",
-      "name": "Trip Name",
-      "description": "Trip Description",
-      "members": ["Member1", "Member2"],
-      "expenses": [...],
-      "createdAt": 1703376000000
-    }
-  ]
-}
-```
+## 📫 Support
 
-## Credits
-
-This project was created using:
-- [Cursor](https://cursor.sh/) - AI-powered code editor
-- Claude-3.5-sonnet - AI model by Anthropic
-- Vue.js 3 - Frontend framework
-- Vite - Build tool
-- Bootstrap 5 - UI framework
+If you have any questions or run into issues, please:
+1. Check existing GitHub Issues
+2. Open a new issue if needed
