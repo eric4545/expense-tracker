@@ -6,12 +6,11 @@
     <title>Trip Expense Tracker</title>
     <meta name="description" content="Track and split expenses with your group">
     <meta name="theme-color" content="#4CAF50">
-    <base href="/" />
     <script>
-        // Dynamically set base href for GitHub Pages
-        if (window.location.hostname === 'eric4545.github.io') {
-            document.querySelector('base').href = '/expense-tracker/';
-        }
+        // Set the base URL for assets
+        window.BASE_URL = location.hostname === 'eric4545.github.io' ? '/expense-tracker' : '';
+        // Add a meta base tag
+        document.write(`<base href="${window.BASE_URL}/" />`);
     </script>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
@@ -27,35 +26,40 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    const isGitHubPages = window.location.hostname === 'eric4545.github.io';
-                    const base = isGitHubPages ? '/expense-tracker' : '';
-                    const swPath = `${base}/sw.js`;
-                    const swScope = `${base}/`;
-
-                    // Unregister any existing service workers first
+                    // Clear any existing service workers first
                     const registrations = await navigator.serviceWorker.getRegistrations();
-                    for (let registration of registrations) {
-                        await registration.unregister();
-                    }
+                    await Promise.all(registrations.map(r => r.unregister()));
 
-                    // Register new service worker
-                    const registration = await navigator.serviceWorker.register(swPath, {
-                        scope: swScope
-                    });
-                    console.log('ServiceWorker registration successful:', registration);
+                    // Register new service worker with correct path
+                    const registration = await navigator.serviceWorker.register(
+                        `${window.BASE_URL}/sw.js`,
+                        { scope: `${window.BASE_URL}/` }
+                    );
+
+                    console.log('ServiceWorker registration successful with scope:', registration.scope);
 
                     // Handle updates
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // New content is available, notify user
-                                if (confirm('New version available! Reload to update?')) {
-                                    window.location.reload();
-                                }
+                                const reload = confirm('New version available! Reload to update?');
+                                if (reload) window.location.reload();
                             }
                         });
                     });
+
+                    // Handle offline status
+                    window.addEventListener('online', () => {
+                        console.log('App is online');
+                        document.body.classList.remove('offline');
+                    });
+
+                    window.addEventListener('offline', () => {
+                        console.log('App is offline');
+                        document.body.classList.add('offline');
+                    });
+
                 } catch (err) {
                     console.error('ServiceWorker registration failed:', err);
                 }
