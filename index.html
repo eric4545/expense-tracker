@@ -4,9 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trip Expense Tracker</title>
+    <meta name="description" content="Track and split expenses with your group">
+    <meta name="theme-color" content="#4CAF50">
+    <link rel="manifest" href="/expense-tracker/manifest.json">
+    <link rel="apple-touch-icon" href="/expense-tracker/icons/icon-192x192.png">
+    <!-- Add iOS meta tags and icons -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Expenses">
 </head>
 <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/expense-tracker/sw.js', {
+                    scope: '/expense-tracker/'
+                })
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
