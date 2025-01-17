@@ -6,6 +6,13 @@
     <title>Trip Expense Tracker</title>
     <meta name="description" content="Track and split expenses with your group">
     <meta name="theme-color" content="#4CAF50">
+    <base href="/" />
+    <script>
+        // Dynamically set base href for GitHub Pages
+        if (window.location.hostname === 'eric4545.github.io') {
+            document.querySelector('base').href = '/expense-tracker/';
+        }
+    </script>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,13 +28,34 @@
             window.addEventListener('load', async () => {
                 try {
                     const isGitHubPages = window.location.hostname === 'eric4545.github.io';
-                    const swPath = isGitHubPages ? '/expense-tracker/sw.js' : '/sw.js';
-                    const swScope = isGitHubPages ? '/expense-tracker/' : '/';
+                    const base = isGitHubPages ? '/expense-tracker' : '';
+                    const swPath = `${base}/sw.js`;
+                    const swScope = `${base}/`;
 
+                    // Unregister any existing service workers first
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                    }
+
+                    // Register new service worker
                     const registration = await navigator.serviceWorker.register(swPath, {
                         scope: swScope
                     });
                     console.log('ServiceWorker registration successful:', registration);
+
+                    // Handle updates
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New content is available, notify user
+                                if (confirm('New version available! Reload to update?')) {
+                                    window.location.reload();
+                                }
+                            }
+                        });
+                    });
                 } catch (err) {
                     console.error('ServiceWorker registration failed:', err);
                 }
