@@ -100,6 +100,12 @@
       </div>
     </div>
 
+    <!-- CSV Import -->
+    <CsvImport
+      :members="members"
+      @import-expenses="handleBulkImport"
+    />
+
     <!-- Expenses List -->
     <div class="table-responsive">
       <table class="table table-sm">
@@ -393,8 +399,14 @@
 </template>
 
 <script>
+import { ref, computed, onMounted } from 'vue';
+import CsvImport from './CsvImport.vue';
+
 export default {
   name: 'ExpenseTracker',
+  components: {
+    CsvImport
+  },
   data() {
     return {
       tripName: 'New Trip',
@@ -1033,6 +1045,31 @@ export default {
         console.error('Error decompressing data:', e)
         return null
       }
+    },
+
+    handleBulkImport(expenses) {
+      expenses.forEach(expense => {
+        const newExpense = {
+          description: expense.description,
+          amount: expense.amount,
+          date: expense.date,
+          paidBy: [expense.paidBy],
+          splitWith: expense.splitWith,
+          paidAmounts: { [expense.paidBy]: expense.amount },
+          splitAmounts: {}
+        };
+
+        // Calculate split amounts
+        const perPerson = expense.amount / expense.splitWith.length;
+        expense.splitWith.forEach(member => {
+          newExpense.splitAmounts[member] = perPerson;
+        });
+
+        this.expenses.push(newExpense);
+      });
+
+      // Save after bulk import
+      this.saveTrip();
     }
   },
   mounted() {
