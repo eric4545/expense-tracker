@@ -10,8 +10,9 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "vue": "^3.3.0",
-    "bootstrap": "^5.3.2"
+    "bootstrap": "^5.3.2",
+    "papaparse": "^5.5.1",
+    "vue": "^3.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.0",
