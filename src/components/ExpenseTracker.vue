@@ -383,24 +383,6 @@
       </div>
     </div>
 
-    <!-- Google Sheets Integration -->
-    <div class="card mt-4">
-      <div class="card-header" style="cursor: pointer" @click="toggleGoogleSheets">
-        <h5 class="card-title mb-0">
-          <i :class="showGoogleSheets ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
-          Google Sheets Sync
-        </h5>
-      </div>
-      <div class="card-body" v-if="showGoogleSheets">
-        <GoogleSheetsSync
-          :expenses="expenses"
-          :members="members"
-          :trip-name="tripName"
-          @import="handleGoogleSheetsImport"
-        />
-      </div>
-    </div>
-
     <!-- Import/Export -->
     <div class="mt-4">
       <button @click="exportData" class="btn btn-primary me-2">Export Data</button>
@@ -412,13 +394,8 @@
 </template>
 
 <script>
-import GoogleSheetsSync from './GoogleSheetsSync.vue';
-
 export default {
   name: 'ExpenseTracker',
-  components: {
-    GoogleSheetsSync
-  },
   data() {
     return {
       tripName: 'New Trip',
@@ -444,7 +421,6 @@ export default {
       showCrossTable: true,
       showPaidForWhom: true,
       showWhoOwesWho: true,
-      showGoogleSheets: false,
     }
   },
   computed: {
@@ -1098,48 +1074,6 @@ export default {
         return null
       }
     },
-
-    toggleGoogleSheets() {
-      this.showGoogleSheets = !this.showGoogleSheets;
-    },
-
-    handleGoogleSheetsImport({ expenses, members }) {
-      // Add any new members
-      members.forEach(member => {
-        if (!this.members.includes(member)) {
-          this.members.push(member);
-        }
-      });
-
-      // Add new expenses
-      expenses.forEach(expense => {
-        const newExpense = {
-          description: expense.description,
-          amount: expense.amount,
-          date: expense.date,
-          paidBy: expense.paidBy,
-          splitWith: expense.splitWith,
-          paidAmounts: {},
-          splitAmounts: {}
-        };
-
-        // Calculate paid amounts
-        const perPayer = expense.amount / expense.paidBy.length;
-        expense.paidBy.forEach(payer => {
-          newExpense.paidAmounts[payer] = perPayer;
-        });
-
-        // Calculate split amounts
-        const perPerson = expense.amount / expense.splitWith.length;
-        expense.splitWith.forEach(member => {
-          newExpense.splitAmounts[member] = perPerson;
-        });
-
-        this.expenses.push(newExpense);
-      });
-
-      this.saveTrip();
-    }
   },
   mounted() {
     this.loadTripList()
