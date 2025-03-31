@@ -1,60 +1,42 @@
-const CACHE_NAME = 'expense-tracker-v4';
+const CACHE_NAME = 'expense-tracker-v5';
 const isGitHubPages = self.location.hostname === 'eric4545.github.io';
 const BASE_URL = isGitHubPages ? '/expense-tracker' : '';
 
-// Core assets that must be cached
+// Only cache core assets during install
+// Dynamic assets will be cached as they're accessed
 const CORE_ASSETS = [
   `${BASE_URL}/`,
   `${BASE_URL}/index.html`,
-  `${BASE_URL}/offline.html`,
   `${BASE_URL}/manifest.json`,
-  // Add icons
-  `${BASE_URL}/icons/icon-72x72.png`,
-  `${BASE_URL}/icons/icon-96x96.png`,
-  `${BASE_URL}/icons/icon-128x128.png`,
-  `${BASE_URL}/icons/icon-144x144.png`,
-  `${BASE_URL}/icons/icon-152x152.png`,
-  `${BASE_URL}/icons/icon-192x192.png`,
-  `${BASE_URL}/icons/icon-384x384.png`,
-  `${BASE_URL}/icons/icon-512x512.png`
+  `${BASE_URL}/offline.html`
 ];
 
-// Helper function to determine if a request is for an asset
-const isAssetRequest = (url) => {
-  const parsedUrl = new URL(url);
-  const path = parsedUrl.pathname;
-
-  // Handle both development and production paths
-  return (
-    path.startsWith('/assets/') ||
-    path.startsWith('/expense-tracker/assets/') ||
-    path.includes('.js') ||
-    path.includes('.css') ||
-    path.includes('.png') ||
-    path.includes('.ico') ||
-    path.includes('.json')
-  );
-};
-
-// Helper function to determine if a request is for a page
-const isNavigationRequest = (request) => {
-  return (
-    request.mode === 'navigate' ||
-    request.headers.get('Accept')?.includes('text/html')
-  );
+// Helper function to determine if an asset should be cached
+const shouldCacheAsset = (url) => {
+  return url.includes('/assets/') ||
+         url.endsWith('.js') ||
+         url.endsWith('.css') ||
+         url.endsWith('.png') ||
+         url.endsWith('.ico') ||
+         url.endsWith('.json');
 };
 
 // Install event - cache core assets
 self.addEventListener('install', (event) => {
+  console.log('[Service Worker] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(CORE_ASSETS))
+      .then(cache => {
+        console.log('[Service Worker] Caching core assets');
+        return cache.addAll(CORE_ASSETS);
+      })
       .then(() => self.skipWaiting())
   );
 });
 
 // Activate event - clean up old caches and take control
 self.addEventListener('activate', (event) => {
+  console.log('[Service Worker] Activating...');
   event.waitUntil(
     Promise.all([
       caches.keys()
@@ -62,53 +44,72 @@ self.addEventListener('activate', (event) => {
           return Promise.all(
             cacheNames
               .filter(name => name !== CACHE_NAME)
-              .map(name => caches.delete(name))
+              .map(name => {
+                console.log('[Service Worker] Deleting old cache:', name);
+                return caches.delete(name);
+              })
           );
         }),
       self.clients.claim()
     ])
   );
+  console.log('[Service Worker] Activated');
 });
 
 // Fetch event - network first for assets, cache first for HTML
 self.addEventListener('fetch', (event) => {
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   const url = new URL(event.request.url);
+  const isAsset = shouldCacheAsset(url.pathname);
+  const isNavigationRequest = event.request.mode === 'navigate';
 
-  // Only handle GET requests
-  if (event.request.method !== 'GET') return;
-
-  // Handle same-origin requests only
-  if (url.origin !== self.location.origin) return;
-
-  // Network-first strategy for assets
-  if (isAssetRequest(url.pathname)) {
+  // Network-first strategy for assets (CSS, JS, images)
+  if (isAsset) {
     event.respondWith(
       fetch(event.request)
         .then(response => {
+          // Cache the response if valid
           if (response.ok) {
             const clonedResponse = response.clone();
             caches.open(CACHE_NAME).then(cache => {
+              console.log('[Service Worker] Caching asset:', url.pathname);
               cache.put(event.request, clonedResponse);
             });
           }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(err => {
+          console.log('[Service Worker] Network request failed:', url.pathname, err);
+          return caches.match(event.request);
+        })
     );
     return;
   }
 
-  // Cache-first strategy for HTML and other requests
+  // Cache-first strategy for navigation and other requests
   event.respondWith(
     caches.match(event.request)
       .then(response => {
         if (response) {
+          console.log('[Service Worker] Serving from cache:', url.pathname);
           return response;
         }
 
+        // Not in cache, get from network
+        console.log('[Service Worker] Fetching from network:', url.pathname);
         return fetch(event.request)
           .then(networkResponse => {
             if (networkResponse.ok) {
+              // Cache the response for future
               const clonedResponse = networkResponse.clone();
               caches.open(CACHE_NAME).then(cache => {
                 cache.put(event.request, clonedResponse);
@@ -116,20 +117,14 @@ self.addEventListener('fetch', (event) => {
             }
             return networkResponse;
           })
-          .catch(() => {
-            // If both cache and network fail, return the offline page
-            if (isNavigationRequest(event.request)) {
+          .catch(err => {
+            console.log('[Service Worker] Fetch failed, serving offline page:', err);
+            // If it's a navigation request and fails, show the offline page
+            if (isNavigationRequest) {
               return caches.match(`${BASE_URL}/offline.html`);
             }
-            throw new Error('Both cache and network failed');
+            throw err;
           });
-      })
-      .catch(() => {
-        // If everything fails, return offline page for navigation requests
-        if (isNavigationRequest(event.request)) {
-          return caches.match(`${BASE_URL}/offline.html`);
-        }
-        throw new Error('Network and cache both failed');
       })
   );
 });
