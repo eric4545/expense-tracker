@@ -383,9 +383,28 @@
       </div>
     </div>
 
+    <!-- Google Sheets Integration -->
+    <div class="card mt-4">
+      <div class="card-header" style="cursor: pointer" @click="toggleGoogleSheets">
+        <h5 class="card-title mb-0">
+          <i :class="showGoogleSheets ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
+          Google Sheets Sync
+        </h5>
+      </div>
+      <div class="card-body" v-if="showGoogleSheets">
+        <GoogleSheetsSync
+          :expenses="expenses"
+          :members="members"
+          :trip-name="tripName"
+          @import="handleGoogleSheetsImport"
+        />
+      </div>
+    </div>
+
     <!-- Import/Export -->
     <div class="mt-4">
       <button @click="exportData" class="btn btn-primary me-2">Export Data</button>
+      <button @click="exportCsv" class="btn btn-info me-2">Export to CSV</button>
       <input type="file" @change="importData" class="form-control d-inline-block w-auto me-2" accept=".json">
       <button @click="shareViaURL" class="btn btn-success">Share via URL</button>
     </div>
@@ -393,8 +412,13 @@
 </template>
 
 <script>
+import GoogleSheetsSync from './GoogleSheetsSync.vue';
+
 export default {
   name: 'ExpenseTracker',
+  components: {
+    GoogleSheetsSync
+  },
   data() {
     return {
       tripName: 'New Trip',
@@ -419,7 +443,8 @@ export default {
       sortDesc: false,
       showCrossTable: true,
       showPaidForWhom: true,
-      showWhoOwesWho: true
+      showWhoOwesWho: true,
+      showGoogleSheets: false,
     }
   },
   computed: {
@@ -739,6 +764,45 @@ export default {
       a.click()
     },
 
+    exportCsv() {
+      // Create CSV header row
+      const headers = ['Date', 'Description', 'Amount', 'Paid By', 'Split With', 'Notes'];
+
+      // Create CSV rows for each expense
+      const rows = this.expenses.map(expense => {
+        return [
+          expense.date || '',
+          expense.description,
+          expense.amount,
+          Array.isArray(expense.paidBy) ? expense.paidBy.join(', ') : expense.paidBy,
+          expense.splitWith.join(', '),
+          ''
+        ];
+      });
+
+      // Combine header and rows
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => {
+          // Handle commas in cell values by quoting
+          if (cell === null || cell === undefined) return '';
+          const cellStr = String(cell);
+          return cellStr.includes(',') ? `"${cellStr}"` : cellStr;
+        }).join(','))
+      ].join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${this.tripName.replace(/\s+/g, '_')}_expenses.csv`);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+
     importData(event) {
       const file = event.target.files[0]
       if (file) {
@@ -1033,6 +1097,48 @@ export default {
         console.error('Error decompressing data:', e)
         return null
       }
+    },
+
+    toggleGoogleSheets() {
+      this.showGoogleSheets = !this.showGoogleSheets;
+    },
+
+    handleGoogleSheetsImport({ expenses, members }) {
+      // Add any new members
+      members.forEach(member => {
+        if (!this.members.includes(member)) {
+          this.members.push(member);
+        }
+      });
+
+      // Add new expenses
+      expenses.forEach(expense => {
+        const newExpense = {
+          description: expense.description,
+          amount: expense.amount,
+          date: expense.date,
+          paidBy: expense.paidBy,
+          splitWith: expense.splitWith,
+          paidAmounts: {},
+          splitAmounts: {}
+        };
+
+        // Calculate paid amounts
+        const perPayer = expense.amount / expense.paidBy.length;
+        expense.paidBy.forEach(payer => {
+          newExpense.paidAmounts[payer] = perPayer;
+        });
+
+        // Calculate split amounts
+        const perPerson = expense.amount / expense.splitWith.length;
+        expense.splitWith.forEach(member => {
+          newExpense.splitAmounts[member] = perPerson;
+        });
+
+        this.expenses.push(newExpense);
+      });
+
+      this.saveTrip();
     }
   },
   mounted() {

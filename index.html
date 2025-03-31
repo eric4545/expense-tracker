@@ -17,8 +17,28 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Expenses">
+    <style>
+        .offline-banner {
+            display: none;
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+        }
+        body.offline .offline-banner {
+            display: block;
+        }
+    </style>
 </head>
 <body>
+    <div class="offline-banner">
+        You are currently offline. Some features may be limited.
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
     <script>
@@ -50,15 +70,15 @@
                     });
 
                     // Handle offline status
-                    window.addEventListener('online', () => {
-                        console.log('App is online');
-                        document.body.classList.remove('offline');
-                    });
+                    const updateOnlineStatus = () => {
+                        const isOnline = navigator.onLine;
+                        document.body.classList.toggle('offline', !isOnline);
+                        console.log(`App is ${isOnline ? 'online' : 'offline'}`);
+                    };
 
-                    window.addEventListener('offline', () => {
-                        console.log('App is offline');
-                        document.body.classList.add('offline');
-                    });
+                    window.addEventListener('online', updateOnlineStatus);
+                    window.addEventListener('offline', updateOnlineStatus);
+                    updateOnlineStatus(); // Initial check
 
                 } catch (err) {
                     console.error('ServiceWorker registration failed:', err);
