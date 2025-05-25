@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
-import ExpenseTracker from './components/ExpenseTracker.vue'
+import App from './App.vue'
+import router from './router'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './assets/main.css'
 
-createApp(ExpenseTracker).mount('#app')
+createApp(App).use(router).mount('#app')

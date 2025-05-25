@@ -11,6 +11,15 @@
         window.BASE_URL = location.hostname === 'eric4545.github.io' ? '/expense-tracker' : '';
         // Add a meta base tag
         document.write(`<base href="${window.BASE_URL}/" />`);
+
+        // Handle SPA redirect from 404.html
+        (function() {
+            const query = window.location.search;
+            if (query.startsWith('?p=')) {
+                const path = query.substring(3);
+                window.history.replaceState(null, null, path);
+            }
+        })();
     </script>
     <link rel="manifest" href="manifest.json">
 

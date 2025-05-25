@@ -9,9 +9,9 @@
     <div class="mb-4">
       <div class="row">
         <div class="col-md-6">
-          <select v-model="currentTripId" class="form-select mb-2" @change="loadTrip">
+          <select v-model="currentTripId" class="form-select mb-2">
             <option value="">Create New Trip</option>
-            <option v-for="trip in tripList" :value="trip.id">
+            <option v-for="trip in tripList" :value="trip.id" :key="trip.id">
               {{ trip.name }} ({{ new Date(trip.createdAt).toLocaleDateString() }})
             </option>
           </select>
@@ -405,6 +405,10 @@ export default {
   components: {
     ThemeToggle
   },
+  props: {
+    routeTripId: String,
+    routeExpenseId: String
+  },
   data() {
     return {
       tripName: 'New Trip',
@@ -502,7 +506,10 @@ export default {
       localStorage.setItem('trips', JSON.stringify(trips))
       this.currentTripId = tripData.id
       this.loadTripList()
+      this.updateURL()
     },
+
+
 
     deleteTrip() {
       if (!this.currentTripId) return
@@ -1046,28 +1053,27 @@ export default {
     },
 
     shareViaURL() {
-      const tripData = {
-        name: this.tripName,
-        description: this.tripDescription,
-        members: this.members,
-        expenses: this.expenses
-      }
-      const compressed = this.compressData(JSON.stringify(tripData))
-      const url = `${window.location.origin}${window.location.pathname}#data=${compressed}`
+      const tripUrl = `${window.location.origin}/expense-tracker/trip/${this.currentTripId}`
 
       // Copy to clipboard
-      navigator.clipboard.writeText(url)
-        .then(() => alert('Share URL copied to clipboard!'))
+      navigator.clipboard.writeText(tripUrl)
+        .then(() => alert('Trip URL copied to clipboard!'))
         .catch(() => {
           // Fallback if clipboard API fails
           const input = document.createElement('input')
-          input.value = url
+          input.value = tripUrl
           document.body.appendChild(input)
           input.select()
           document.execCommand('copy')
           document.body.removeChild(input)
-          alert('Share URL copied to clipboard!')
+          alert('Trip URL copied to clipboard!')
         })
+    },
+
+    updateURL() {
+      if (this.currentTripId && this.$route.params.tripId !== this.currentTripId) {
+        this.$router.replace(`/trip/${this.currentTripId}`)
+      }
     },
 
     compressData(str) {
@@ -1085,9 +1091,17 @@ export default {
     },
   },
   mounted() {
+    console.log('ExpenseTracker mounted, router available:', !!this.$router)
     this.loadTripList()
 
-    // Check for shared data in URL
+    // Handle route parameters
+    if (this.routeTripId) {
+      console.log('Loading trip from route param:', this.routeTripId)
+      this.currentTripId = this.routeTripId
+      this.loadTrip()
+    }
+
+    // Check for shared data in URL (legacy support)
     const hash = window.location.hash
     if (hash.startsWith('#data=')) {
       try {
@@ -1106,6 +1120,30 @@ export default {
     }
   },
   watch: {
+    currentTripId: {
+      handler(newTripId, oldTripId) {
+        console.log('Trip ID changed:', oldTripId, '->', newTripId)
+        // Only navigate if the trip ID actually changed and we're not in the initial load
+        if (newTripId !== oldTripId && this.$route) {
+          if (newTripId) {
+            // Navigate to the trip
+            console.log('Navigating to trip:', newTripId)
+            if (this.$route.params.tripId !== newTripId) {
+              console.log('Pushing route:', `/trip/${newTripId}`)
+              this.$router.push(`/trip/${newTripId}`)
+            }
+            this.loadTrip()
+          } else {
+            // Navigate to home
+            console.log('Navigating to home')
+            if (this.$route.path !== '/') {
+              this.$router.push('/')
+            }
+            this.resetTripData()
+          }
+        }
+      }
+    },
     'newExpense.paidAmounts': {
       deep: true,
       handler(newVal) {

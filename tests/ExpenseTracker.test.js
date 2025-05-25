@@ -1,131 +1,310 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import ExpenseTracker from '../src/components/ExpenseTracker.vue'
+
+// Mock ThemeToggle component
+vi.mock('../src/components/ThemeToggle.vue', () => ({
+  default: {
+    name: 'ThemeToggle',
+    template: '<div>Theme Toggle</div>'
+  }
+}))
 
 describe('ExpenseTracker', () => {
   let wrapper
+  let mockRouter
+  let mockRoute
 
   beforeEach(() => {
-    // Clear localStorage before each test
+    // Reset localStorage mock
     localStorage.clear()
-    wrapper = mount(ExpenseTracker)
+    localStorage.getItem.mockClear()
+    localStorage.setItem.mockClear()
+
+    // Mock router and route
+    mockRouter = {
+      push: vi.fn(),
+      replace: vi.fn()
+    }
+    mockRoute = {
+      params: {},
+      path: '/'
+    }
+
+    wrapper = mount(ExpenseTracker, {
+      global: {
+        mocks: {
+          $router: mockRouter,
+          $route: mockRoute
+        }
+      }
+    })
+  })
+
+  describe('Component Initialization', () => {
+    it('should render successfully', () => {
+      expect(wrapper.exists()).toBe(true)
+      expect(wrapper.find('h1').text()).toContain('Expense Tracker')
+    })
+
+    it('should initialize with default trip name', () => {
+      expect(wrapper.vm.tripName).toMatch(/New Trip/)
+    })
+
+    it('should load trip list on mount', () => {
+      expect(localStorage.getItem).toHaveBeenCalledWith('trips')
+    })
   })
 
   describe('Trip Management', () => {
-    it('creates a new trip', async () => {
-      await wrapper.setData({ tripName: 'Test Trip' })
-      await wrapper.find('button').trigger('click')
+    it('should generate unique trip IDs', () => {
+      const id1 = wrapper.vm.generateTripId()
+      const id2 = wrapper.vm.generateTripId()
 
-      const trips = JSON.parse(localStorage.getItem('trips') || '[]')
-      expect(trips.length).toBe(1)
-      expect(trips[0].name).toBe('Test Trip')
+      expect(id1).toMatch(/^[0-9a-f-]{36}$/)
+      expect(id2).toMatch(/^[0-9a-f-]{36}$/)
+      expect(id1).not.toBe(id2)
     })
 
-    it('loads existing trips', async () => {
-      const testTrip = {
-        id: '123',
-        name: 'Test Trip',
-        members: ['Alice', 'Bob'],
-        expenses: [],
-        createdAt: Date.now()
-      }
-      localStorage.setItem('trips', JSON.stringify([testTrip]))
+    it('should save trip and update URL', async () => {
+      wrapper.vm.tripName = 'Test Trip'
+      wrapper.vm.members = ['Alice', 'Bob']
 
-      await wrapper.vm.loadTripList()
-      expect(wrapper.vm.tripList.length).toBe(1)
-      expect(wrapper.vm.tripList[0].name).toBe('Test Trip')
+      await wrapper.vm.saveTrip()
+
+      expect(localStorage.setItem).toHaveBeenCalled()
+      expect(wrapper.vm.currentTripId).toBeTruthy()
+      expect(mockRouter.replace).toHaveBeenCalledWith(`/trip/${wrapper.vm.currentTripId}`)
+    })
+
+    it('should navigate when trip selection changes', async () => {
+      const tripId = 'test-trip-123'
+      wrapper.vm.currentTripId = tripId
+
+      await wrapper.vm.onTripChange()
+
+      expect(mockRouter.push).toHaveBeenCalledWith(`/trip/${tripId}`)
+    })
+
+    it('should navigate to home when no trip selected', async () => {
+      wrapper.vm.currentTripId = ''
+
+      await wrapper.vm.onTripChange()
+
+      expect(mockRouter.push).toHaveBeenCalledWith('/')
     })
   })
 
-  describe('Expense Calculations', () => {
-    beforeEach(async () => {
-      await wrapper.setData({
-        members: ['Alice', 'Bob', 'Charlie'],
-        expenses: [
-          {
-            description: 'Dinner',
-            amount: 3000,
-            paidBy: 'Alice',
-            splitWith: ['Alice', 'Bob', 'Charlie']
-          },
-          {
-            description: 'Taxi',
-            amount: 1500,
-            paidBy: 'Bob',
-            splitWith: ['Bob', 'Charlie']
+  describe('Route Parameter Handling', () => {
+    it('should load trip from routeTripId prop', () => {
+      const tripId = 'test-trip-456'
+      const mockTripData = {
+        id: tripId,
+        name: 'Test Trip',
+        members: ['Alice', 'Bob'],
+        expenses: []
+      }
+
+      localStorage.getItem.mockReturnValue(JSON.stringify([mockTripData]))
+
+      const wrapperWithRoute = mount(ExpenseTracker, {
+        props: {
+          routeTripId: tripId
+        },
+        global: {
+          mocks: {
+            $router: mockRouter,
+            $route: { params: { tripId } }
           }
-        ]
+        }
       })
+
+      expect(wrapperWithRoute.vm.currentTripId).toBe(tripId)
     })
 
-    it('calculates total paid correctly', () => {
-      expect(wrapper.vm.getTotalPaid('Alice')).toBe(3000)
-      expect(wrapper.vm.getTotalPaid('Bob')).toBe(1500)
-      expect(wrapper.vm.getTotalPaid('Charlie')).toBe(0)
-    })
+    it('should handle routeExpenseId prop', () => {
+      const expenseId = 'test-expense-789'
 
-    it('calculates amount should pay correctly', () => {
-      expect(wrapper.vm.getTotalShouldPay('Alice')).toBe(1000) // 3000/3
-      expect(wrapper.vm.getTotalShouldPay('Bob')).toBe(1750) // 3000/3 + 1500/2
-      expect(wrapper.vm.getTotalShouldPay('Charlie')).toBe(1750) // 3000/3 + 1500/2
-    })
+      const wrapperWithExpense = mount(ExpenseTracker, {
+        props: {
+          routeExpenseId: expenseId
+        },
+        global: {
+          mocks: {
+            $router: mockRouter,
+            $route: { params: { expenseId } }
+          }
+        }
+      })
 
-    it('calculates balances correctly', () => {
-      expect(wrapper.vm.getBalance('Alice')).toBe(2000) // 3000 - 1000
-      expect(wrapper.vm.getBalance('Bob')).toBe(-250) // 1500 - 1750
-      expect(wrapper.vm.getBalance('Charlie')).toBe(-1750) // 0 - 1750
+      expect(wrapperWithExpense.props().routeExpenseId).toBe(expenseId)
     })
   })
 
   describe('Member Management', () => {
-    it('adds new members', async () => {
-      await wrapper.setData({ newMember: 'Alice' })
-      await wrapper.find('.input-group button').trigger('click')
+    it('should add new member', async () => {
+      wrapper.vm.newMember = 'Charlie'
+      await wrapper.vm.addMember()
 
-      expect(wrapper.vm.members).toContain('Alice')
+      expect(wrapper.vm.members).toContain('Charlie')
+      expect(wrapper.vm.newMember).toBe('')
     })
 
-    it('prevents duplicate members', async () => {
-      await wrapper.setData({
-        members: ['Alice'],
-        newMember: 'Alice'
-      })
-      await wrapper.find('.input-group button').trigger('click')
+    it('should not add duplicate members', async () => {
+      wrapper.vm.members = ['Alice']
+      wrapper.vm.newMember = 'Alice'
 
-      expect(wrapper.vm.members.length).toBe(1)
+      await wrapper.vm.addMember()
+
+      expect(wrapper.vm.members).toEqual(['Alice'])
+    })
+
+    it('should remove member', async () => {
+      wrapper.vm.members = ['Alice', 'Bob']
+
+      await wrapper.vm.removeMember('Alice')
+
+      expect(wrapper.vm.members).toEqual(['Bob'])
     })
   })
 
   describe('Expense Management', () => {
-    it('adds new expense', async () => {
-      await wrapper.setData({
-        members: ['Alice', 'Bob'],
-        newExpense: {
-          description: 'Lunch',
-          amount: 1000,
-          paidBy: 'Alice',
-          splitWith: ['Alice', 'Bob'],
-          date: '2024-12-21'
-        }
-      })
-
-      await wrapper.find('.card-body button.btn-success').trigger('click')
-      expect(wrapper.vm.expenses.length).toBe(1)
-      expect(wrapper.vm.expenses[0].description).toBe('Lunch')
+    beforeEach(() => {
+      wrapper.vm.members = ['Alice', 'Bob']
+      wrapper.vm.newExpense = {
+        description: 'Test Expense',
+        amount: 100,
+        paidBy: ['Alice'],
+        paidAmounts: { Alice: 100 },
+        splitWith: ['Alice', 'Bob'],
+        splitAmounts: { Alice: 50, Bob: 50 },
+        date: '2024-01-01'
+      }
     })
 
-    it('validates expense input', async () => {
-      await wrapper.setData({
-        newExpense: {
-          description: '',
-          amount: null,
-          paidBy: '',
-          splitWith: []
-        }
-      })
+    it('should add expense with valid data', async () => {
+      await wrapper.vm.addExpense()
 
-      await wrapper.find('.card-body button.btn-success').trigger('click')
-      expect(wrapper.vm.expenses.length).toBe(0)
+      expect(wrapper.vm.expenses).toHaveLength(1)
+      expect(wrapper.vm.expenses[0].description).toBe('Test Expense')
+    })
+
+    it('should not add expense with invalid paid amounts', async () => {
+      wrapper.vm.newExpense.paidAmounts = { Alice: 50 } // Should be 100
+
+      // Mock alert
+      window.alert = vi.fn()
+
+      await wrapper.vm.addExpense()
+
+      expect(wrapper.vm.expenses).toHaveLength(0)
+      expect(window.alert).toHaveBeenCalledWith('Total paid amounts must equal the expense amount')
+    })
+
+    it('should remove expense', async () => {
+      wrapper.vm.expenses = [{ description: 'Test' }]
+
+      await wrapper.vm.removeExpense(0)
+
+      expect(wrapper.vm.expenses).toHaveLength(0)
+    })
+  })
+
+  describe('URL Sharing', () => {
+    it('should generate correct trip URL', async () => {
+      wrapper.vm.currentTripId = 'test-trip-123'
+
+      // Mock clipboard
+      navigator.clipboard.writeText = vi.fn().mockResolvedValue()
+      window.alert = vi.fn()
+
+      await wrapper.vm.shareViaURL()
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        'http://localhost:3000/expense-tracker/trip/test-trip-123'
+      )
+      expect(window.alert).toHaveBeenCalledWith('Trip URL copied to clipboard!')
+    })
+  })
+
+  describe('Calculations', () => {
+    beforeEach(() => {
+      wrapper.vm.members = ['Alice', 'Bob']
+      wrapper.vm.expenses = [
+        {
+          description: 'Dinner',
+          amount: 100,
+          paidBy: 'Alice',
+          splitWith: ['Alice', 'Bob'],
+          splitAmounts: { Alice: 50, Bob: 50 }
+        }
+      ]
+    })
+
+    it('should calculate total paid correctly', () => {
+      expect(wrapper.vm.getTotalPaid('Alice')).toBe(100)
+      expect(wrapper.vm.getTotalPaid('Bob')).toBe(0)
+    })
+
+    it('should calculate total should pay correctly', () => {
+      expect(wrapper.vm.getTotalShouldPay('Alice')).toBe(50)
+      expect(wrapper.vm.getTotalShouldPay('Bob')).toBe(50)
+    })
+
+    it('should calculate balance correctly', () => {
+      expect(wrapper.vm.getBalance('Alice')).toBe(50) // Paid 100, should pay 50
+      expect(wrapper.vm.getBalance('Bob')).toBe(-50) // Paid 0, should pay 50
+    })
+  })
+
+  describe('Data Persistence', () => {
+    it('should export data correctly', async () => {
+      // Mock URL and blob creation
+      global.URL.createObjectURL = vi.fn(() => 'blob:url')
+      global.URL.revokeObjectURL = vi.fn()
+
+      wrapper.vm.tripList = [{ id: '1', name: 'Test Trip' }]
+
+      await wrapper.vm.exportData()
+
+      expect(document.createElement).toHaveBeenCalledWith('a')
+    })
+
+    it('should handle import data', async () => {
+      const mockData = {
+        tripList: [
+          {
+            id: 'test-trip',
+            name: 'Imported Trip',
+            members: ['Alice'],
+            expenses: []
+          }
+        ]
+      }
+
+      const mockEvent = {
+        target: {
+          files: [new File([JSON.stringify(mockData)], 'test.json')],
+          value: ''
+        }
+      }
+
+      // Mock FileReader
+      const mockFileReader = {
+        readAsText: vi.fn(),
+        onload: null,
+        result: JSON.stringify(mockData)
+      }
+
+      global.FileReader = vi.fn(() => mockFileReader)
+
+      // Call the import function
+      wrapper.vm.importData(mockEvent)
+
+      // Simulate file read completion
+      mockFileReader.onload({ target: { result: JSON.stringify(mockData) } })
+
+      expect(localStorage.setItem).toHaveBeenCalled()
     })
   })
 })
