@@ -22,6 +22,9 @@
       "suspicious": {
         "noDebugger": "warn",
         "noConsoleLog": "warn"
+      },
+      "complexity": {
+        "noForEach": "off"
       }
     }
   },
