@@ -1,7 +1,9 @@
-name: Deploy to GitHub Pages
+name: CI/CD Pipeline
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
@@ -11,16 +13,14 @@ permissions:
   id-token: write
 
 jobs:
-  build-and-deploy:
+  ci:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20 LTS
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -29,8 +29,39 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Lint and Format Check
+        run: npm run check
+
+      - name: Run Tests
+        run: npm test -- --run
+
+      - name: Security Audit
+        run: npm audit --audit-level=moderate
+
       - name: Build
         run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-files
+          path: dist/
+          retention-days: 1
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-files
+          path: dist/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

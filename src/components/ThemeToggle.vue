@@ -16,53 +16,58 @@ export default {
   name: 'ThemeToggle',
   data() {
     return {
-      isDark: false
+      isDark: false,
     }
   },
   methods: {
     toggleTheme() {
-      this.isDark = !this.isDark;
-      this.applyTheme();
-      this.saveTheme();
+      this.isDark = !this.isDark
+      this.applyTheme()
+      this.saveTheme()
     },
 
     applyTheme() {
       if (this.isDark) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.body.classList.add('dark-theme');
+        document.documentElement.setAttribute('data-theme', 'dark')
+        document.body.classList.add('dark-theme')
       } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.body.classList.remove('dark-theme');
+        document.documentElement.setAttribute('data-theme', 'light')
+        document.body.classList.remove('dark-theme')
       }
     },
 
     saveTheme() {
-      localStorage.setItem('expense-tracker-theme', this.isDark ? 'dark' : 'light');
+      localStorage.setItem(
+        'expense-tracker-theme',
+        this.isDark ? 'dark' : 'light'
+      )
     },
 
     loadTheme() {
-      const savedTheme = localStorage.getItem('expense-tracker-theme');
+      const savedTheme = localStorage.getItem('expense-tracker-theme')
       if (savedTheme) {
-        this.isDark = savedTheme === 'dark';
+        this.isDark = savedTheme === 'dark'
       } else {
         // Check user's system preference
-        this.isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        this.isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
       }
-      this.applyTheme();
-    }
+      this.applyTheme()
+    },
   },
 
   mounted() {
-    this.loadTheme();
+    this.loadTheme()
 
     // Listen for system theme changes
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      if (!localStorage.getItem('expense-tracker-theme')) {
-        this.isDark = e.matches;
-        this.applyTheme();
-      }
-    });
-  }
+    window
+      .matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', (e) => {
+        if (!localStorage.getItem('expense-tracker-theme')) {
+          this.isDark = e.matches
+          this.applyTheme()
+        }
+      })
+  },
 }
 </script>
 

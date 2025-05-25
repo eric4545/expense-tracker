@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { createRouter, createWebHistory } from 'vue-router'
 import { mount } from '@vue/test-utils'
-import router from '../src/router'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { createRouter, createWebHistory } from 'vue-router'
 import App from '../src/App.vue'
+import router from '../src/router'
 
 describe('Router', () => {
   beforeEach(() => {
@@ -47,7 +47,7 @@ describe('Router', () => {
     await router.push(`/trip/${tripId}`)
 
     const route = router.currentRoute.value
-    const tripRoute = router.options.routes.find(r => r.name === 'Trip')
+    const tripRoute = router.options.routes.find((r) => r.name === 'Trip')
     const props = tripRoute.props(route)
 
     expect(props.routeTripId).toBe(tripId)

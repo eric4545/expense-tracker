@@ -5,30 +5,30 @@ const routes = [
   {
     path: '/',
     name: 'Home',
-    component: ExpenseTracker
+    component: ExpenseTracker,
   },
   {
     path: '/trip/:tripId',
     name: 'Trip',
     component: ExpenseTracker,
-    props: route => ({ routeTripId: route.params.tripId })
+    props: (route) => ({ routeTripId: route.params.tripId }),
   },
   {
     path: '/expense/:expenseId',
     name: 'Expense',
     component: ExpenseTracker,
-    props: route => ({ routeExpenseId: route.params.expenseId })
+    props: (route) => ({ routeExpenseId: route.params.expenseId }),
   },
   {
     // Catch all route - redirect to home
     path: '/:pathMatch(.*)*',
-    redirect: '/'
-  }
+    redirect: '/',
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory('/expense-tracker/'),
-  routes
+  routes,
 })
 
 export default router

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ThemeToggle from '../src/components/ThemeToggle.vue'
 
 describe('ThemeToggle', () => {
@@ -16,6 +16,16 @@ describe('ThemeToggle', () => {
     document.documentElement.setAttribute = vi.fn()
     document.body.classList.add = vi.fn()
     document.body.classList.remove = vi.fn()
+
+    // Ensure matchMedia is properly mocked before component mount
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
 
     wrapper = mount(ThemeToggle)
   })
@@ -43,7 +53,10 @@ describe('ThemeToggle', () => {
     wrapper.vm.isDark = true
     wrapper.vm.applyTheme()
 
-    expect(document.documentElement.setAttribute).toHaveBeenCalledWith('data-theme', 'dark')
+    expect(document.documentElement.setAttribute).toHaveBeenCalledWith(
+      'data-theme',
+      'dark'
+    )
     expect(document.body.classList.add).toHaveBeenCalledWith('dark-theme')
   })
 
@@ -51,7 +64,10 @@ describe('ThemeToggle', () => {
     wrapper.vm.isDark = false
     wrapper.vm.applyTheme()
 
-    expect(document.documentElement.setAttribute).toHaveBeenCalledWith('data-theme', 'light')
+    expect(document.documentElement.setAttribute).toHaveBeenCalledWith(
+      'data-theme',
+      'light'
+    )
     expect(document.body.classList.remove).toHaveBeenCalledWith('dark-theme')
   })
 
@@ -59,12 +75,18 @@ describe('ThemeToggle', () => {
     wrapper.vm.isDark = true
     wrapper.vm.saveTheme()
 
-    expect(localStorage.setItem).toHaveBeenCalledWith('expense-tracker-theme', 'dark')
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      'expense-tracker-theme',
+      'dark'
+    )
 
     wrapper.vm.isDark = false
     wrapper.vm.saveTheme()
 
-    expect(localStorage.setItem).toHaveBeenCalledWith('expense-tracker-theme', 'light')
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      'expense-tracker-theme',
+      'light'
+    )
   })
 
   it('should load saved theme from localStorage', () => {
@@ -81,7 +103,7 @@ describe('ThemeToggle', () => {
 
     // Mock matchMedia to return dark preference
     window.matchMedia = vi.fn().mockImplementation(() => ({
-      matches: true
+      matches: true,
     }))
 
     wrapper.vm.loadTheme()
@@ -89,13 +111,19 @@ describe('ThemeToggle', () => {
     expect(wrapper.vm.isDark).toBe(true)
   })
 
-  it('should have correct button titles', () => {
+  it('should have correct button titles', async () => {
+    // Test light mode - should offer to switch to dark
     wrapper.vm.isDark = false
-    wrapper.vm.$forceUpdate()
-    expect(wrapper.find('button').attributes('title')).toBe('Switch to Dark Mode')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button').attributes('title')).toBe(
+      'Switch to Dark Mode'
+    )
 
+    // Test dark mode - should offer to switch to light
     wrapper.vm.isDark = true
-    wrapper.vm.$forceUpdate()
-    expect(wrapper.find('button').attributes('title')).toBe('Switch to Light Mode')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button').attributes('title')).toBe(
+      'Switch to Light Mode'
+    )
   })
 })

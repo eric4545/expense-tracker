@@ -1,5 +1,7 @@
 # Expense Tracker
 
+[![CI/CD](https://github.com/eric4545/expense-tracker/actions/workflows/deploy.yml/badge.svg)](https://github.com/eric4545/expense-tracker/actions/workflows/deploy.yml)
+
 A simple and intuitive expense tracking application built with Vue.js that helps groups track and split expenses. Perfect for trips, shared housing, or any situation where expenses need to be split between multiple people.
 
 ## 🌟 Features
@@ -42,15 +44,32 @@ npm run build
 
 ### Prerequisites
 
-- Node.js 20.x or higher
+- Node.js 20.x LTS
 - npm 10.x or higher
+
+### Continuous Integration
+
+This project uses GitHub Actions for CI/CD with the following checks:
+
+- **Tests**: Comprehensive test suite with Vitest
+- **Security**: npm audit for vulnerabilities
+- **Linting & Formatting**: Biome for fast code quality checks
+- **Build**: Verifies production build works
+- **Deploy**: Automatic deployment to GitHub Pages on main branch
 
 ### Available Scripts
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
 - `npm run coverage` - Run tests with coverage report
+- `npm run lint` - Run Biome linter
+- `npm run lint:fix` - Run Biome linter and fix issues
+- `npm run format` - Format code with Biome
+- `npm run format:check` - Check code formatting
+- `npm run check` - Run both linting and formatting checks
+- `npm run check:fix` - Run and fix both linting and formatting
 
 ## 📱 Usage
 

@@ -1,11 +1,11 @@
-import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [vue()],
   base: '/expense-tracker/',
   test: {
     environment: 'jsdom',
-    globals: true
-  }
+    globals: true,
+  },
 })

@@ -397,17 +397,17 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
-import ThemeToggle from './ThemeToggle.vue';
+import { computed, onMounted, ref } from 'vue'
+import ThemeToggle from './ThemeToggle.vue'
 
 export default {
   name: 'ExpenseTracker',
   components: {
-    ThemeToggle
+    ThemeToggle,
   },
   props: {
     routeTripId: String,
-    routeExpenseId: String
+    routeExpenseId: String,
   },
   data() {
     return {
@@ -425,7 +425,7 @@ export default {
         paidAmounts: {},
         splitWith: [],
         splitAmounts: {},
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
       },
       editingIndex: -1,
       editingExpense: null,
@@ -439,7 +439,7 @@ export default {
   computed: {
     sortedExpenses() {
       return [...this.expenses].sort((a, b) => {
-        let comparison = 0;
+        let comparison = 0
         if (this.sortBy === 'description') {
           comparison = a.description.localeCompare(b.description)
         } else if (this.sortBy === 'amount') {
@@ -453,7 +453,7 @@ export default {
         }
         return this.sortDesc ? -comparison : comparison
       })
-    }
+    },
   },
   methods: {
     toggleSort(field) {
@@ -466,9 +466,9 @@ export default {
     },
 
     generateTripId() {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0
-        const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0
+        const v = c === 'x' ? r : (r & 0x3) | 0x8
         return v.toString(16)
       })
     },
@@ -480,9 +480,11 @@ export default {
 
       // If creating a new trip, check for duplicate names
       if (!this.currentTripId) {
-        const existingTrip = trips.find(t => t.name === this.tripName.trim())
+        const existingTrip = trips.find((t) => t.name === this.tripName.trim())
         if (existingTrip) {
-          alert('A trip with this name already exists. Please choose a different name.')
+          alert(
+            'A trip with this name already exists. Please choose a different name.'
+          )
           return
         }
       }
@@ -493,10 +495,10 @@ export default {
         description: this.tripDescription,
         members: this.members,
         expenses: this.expenses,
-        createdAt: Date.now()
+        createdAt: Date.now(),
       }
 
-      const existingIndex = trips.findIndex(t => t.id === tripData.id)
+      const existingIndex = trips.findIndex((t) => t.id === tripData.id)
       if (existingIndex >= 0) {
         trips[existingIndex] = tripData
       } else {
@@ -509,14 +511,12 @@ export default {
       this.updateURL()
     },
 
-
-
     deleteTrip() {
       if (!this.currentTripId) return
       if (!confirm('Are you sure you want to delete this trip?')) return
 
       const trips = JSON.parse(localStorage.getItem('trips') || '[]')
-      const filteredTrips = trips.filter(t => t.id !== this.currentTripId)
+      const filteredTrips = trips.filter((t) => t.id !== this.currentTripId)
       localStorage.setItem('trips', JSON.stringify(filteredTrips))
 
       this.currentTripId = ''
@@ -535,7 +535,7 @@ export default {
         return
       }
 
-      const trip = this.tripList.find(t => t.id === this.currentTripId)
+      const trip = this.tripList.find((t) => t.id === this.currentTripId)
       if (trip) {
         this.tripName = trip.name
         this.tripDescription = trip.description || ''
@@ -545,11 +545,13 @@ export default {
     },
 
     resetTripData() {
-      const date = new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).replace(/\//g, '')
+      const date = new Date()
+        .toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+        .replace(/\//g, '')
 
       this.tripName = `New Trip (${date})`
       this.tripDescription = ''
@@ -563,7 +565,7 @@ export default {
         paidAmounts: {},
         splitWith: [],
         splitAmounts: {},
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
       }
     },
 
@@ -576,18 +578,22 @@ export default {
     },
 
     removeMember(member) {
-      this.members = this.members.filter(m => m !== member)
+      this.members = this.members.filter((m) => m !== member)
       this.saveTrip()
     },
 
     addExpense() {
-      if (this.newExpense.description &&
-          this.newExpense.amount &&
-          this.newExpense.paidBy.length > 0 &&
-          this.newExpense.splitWith.length > 0) {
-
+      if (
+        this.newExpense.description &&
+        this.newExpense.amount &&
+        this.newExpense.paidBy.length > 0 &&
+        this.newExpense.splitWith.length > 0
+      ) {
         // Verify total paid amounts match expense amount
-        const totalPaid = Object.values(this.newExpense.paidAmounts).reduce((sum, amount) => sum + amount, 0)
+        const totalPaid = Object.values(this.newExpense.paidAmounts).reduce(
+          (sum, amount) => sum + amount,
+          0
+        )
         if (Math.abs(totalPaid - this.newExpense.amount) > 0.01) {
           alert('Total paid amounts must equal the expense amount')
           return
@@ -598,7 +604,7 @@ export default {
           this.updateSplitAmounts()
         }
 
-        this.expenses.push({...this.newExpense})
+        this.expenses.push({ ...this.newExpense })
         this.newExpense = {
           description: '',
           amount: null,
@@ -606,7 +612,7 @@ export default {
           paidAmounts: {},
           splitWith: [],
           splitAmounts: {},
-          date: new Date().toISOString().split('T')[0]
+          date: new Date().toISOString().split('T')[0],
         }
         this.saveTrip()
       }
@@ -627,22 +633,29 @@ export default {
       this.editingExpense = {
         ...expense,
         date: expense.date || new Date().toISOString().split('T')[0],
-        paidBy: Array.isArray(expense.paidBy) ? [...expense.paidBy] : [expense.paidBy],
-        paidAmounts: expense.paidAmounts ? {...expense.paidAmounts} :
-          { [expense.paidBy]: expense.amount },
+        paidBy: Array.isArray(expense.paidBy)
+          ? [...expense.paidBy]
+          : [expense.paidBy],
+        paidAmounts: expense.paidAmounts
+          ? { ...expense.paidAmounts }
+          : { [expense.paidBy]: expense.amount },
         splitWith: [...expense.splitWith],
-        splitAmounts: {...(expense.splitAmounts || {})}
+        splitAmounts: { ...(expense.splitAmounts || {}) },
       }
     },
 
     saveEdit() {
-      if (this.editingExpense.description &&
-          this.editingExpense.amount &&
-          this.editingExpense.paidBy.length > 0 &&
-          this.editingExpense.splitWith.length > 0) {
-
+      if (
+        this.editingExpense.description &&
+        this.editingExpense.amount &&
+        this.editingExpense.paidBy.length > 0 &&
+        this.editingExpense.splitWith.length > 0
+      ) {
         // Verify total paid amounts match expense amount
-        const totalPaid = Object.values(this.editingExpense.paidAmounts).reduce((sum, amount) => sum + amount, 0)
+        const totalPaid = Object.values(this.editingExpense.paidAmounts).reduce(
+          (sum, amount) => sum + amount,
+          0
+        )
         if (Math.abs(totalPaid - this.editingExpense.amount) > 0.01) {
           alert('Total paid amounts must equal the expense amount')
           return
@@ -650,9 +663,10 @@ export default {
 
         // Initialize split amounts if not set
         if (Object.keys(this.editingExpense.splitAmounts).length === 0) {
-          const equalShare = this.editingExpense.amount / this.editingExpense.splitWith.length
+          const equalShare =
+            this.editingExpense.amount / this.editingExpense.splitWith.length
           this.editingExpense.splitAmounts = {}
-          this.editingExpense.splitWith.forEach(member => {
+          this.editingExpense.splitWith.forEach((member) => {
             this.editingExpense.splitAmounts[member] = equalShare
           })
         }
@@ -674,7 +688,8 @@ export default {
         if (Array.isArray(expense.paidBy)) {
           // If multiple payers with specific amounts
           return sum + (expense.paidAmounts[member] || 0)
-        } else if (expense.paidBy === member) {
+        }
+        if (expense.paidBy === member) {
           // Single payer
           return sum + expense.amount
         }
@@ -683,17 +698,17 @@ export default {
     },
 
     getTotalShouldPay(member) {
-      let total = 0;
+      let total = 0
       for (const expense of this.expenses) {
         if (expense.splitWith.includes(member)) {
-          if (expense.splitAmounts && expense.splitAmounts[member]) {
-            total += expense.splitAmounts[member];
+          if (expense.splitAmounts?.[member]) {
+            total += expense.splitAmounts[member]
           } else {
-            total += expense.amount / expense.splitWith.length;
+            total += expense.amount / expense.splitWith.length
           }
         }
       }
-      return total;
+      return total
     },
 
     getBalance(member) {
@@ -707,32 +722,33 @@ export default {
       const balances = {}
 
       // Calculate initial balances
-      this.members.forEach(member => {
+      this.members.forEach((member) => {
         balances[member] = this.getBalance(member)
       })
 
       // Sort members by balance
       const creditors = [...this.members]
-        .filter(m => balances[m] > 0)
+        .filter((m) => balances[m] > 0)
         .sort((a, b) => balances[b] - balances[a])
 
       const debtors = [...this.members]
-        .filter(m => balances[m] < 0)
+        .filter((m) => balances[m] < 0)
         .sort((a, b) => balances[a] - balances[b]) // Most negative first
 
       // Process each debtor
-      debtors.forEach(debtor => {
+      debtors.forEach((debtor) => {
         let remainingDebt = Math.abs(balances[debtor])
 
         // Try to settle with creditors
-        creditors.forEach(creditor => {
+        creditors.forEach((creditor) => {
           if (remainingDebt > 0 && balances[creditor] > 0) {
             const amount = Math.min(remainingDebt, balances[creditor])
-            if (amount > 0.01) { // Only add payments greater than 1 cent
+            if (amount > 0.01) {
+              // Only add payments greater than 1 cent
               payments.push({
                 from: debtor,
                 to: creditor,
-                amount: Math.round(amount * 100) / 100
+                amount: Math.round(amount * 100) / 100,
               })
               remainingDebt -= amount
               balances[creditor] -= amount
@@ -745,9 +761,13 @@ export default {
     },
 
     exportData() {
-      const data = JSON.stringify({
-        tripList: this.tripList
-      }, null, 2)
+      const data = JSON.stringify(
+        {
+          tripList: this.tripList,
+        },
+        null,
+        2
+      )
       const blob = new Blob([data], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -758,41 +778,57 @@ export default {
 
     exportCsv() {
       // Create CSV header row
-      const headers = ['Date', 'Description', 'Amount', 'Paid By', 'Split With', 'Notes'];
+      const headers = [
+        'Date',
+        'Description',
+        'Amount',
+        'Paid By',
+        'Split With',
+        'Notes',
+      ]
 
       // Create CSV rows for each expense
-      const rows = this.expenses.map(expense => {
+      const rows = this.expenses.map((expense) => {
         return [
           expense.date || '',
           expense.description,
           expense.amount,
-          Array.isArray(expense.paidBy) ? expense.paidBy.join(', ') : expense.paidBy,
+          Array.isArray(expense.paidBy)
+            ? expense.paidBy.join(', ')
+            : expense.paidBy,
           expense.splitWith.join(', '),
-          ''
-        ];
-      });
+          '',
+        ]
+      })
 
       // Combine header and rows
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => {
-          // Handle commas in cell values by quoting
-          if (cell === null || cell === undefined) return '';
-          const cellStr = String(cell);
-          return cellStr.includes(',') ? `"${cellStr}"` : cellStr;
-        }).join(','))
-      ].join('\n');
+        ...rows.map((row) =>
+          row
+            .map((cell) => {
+              // Handle commas in cell values by quoting
+              if (cell === null || cell === undefined) return ''
+              const cellStr = String(cell)
+              return cellStr.includes(',') ? `"${cellStr}"` : cellStr
+            })
+            .join(',')
+        ),
+      ].join('\n')
 
       // Create and download file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${this.tripName.replace(/\s+/g, '_')}_expenses.csv`);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.setAttribute('href', url)
+      link.setAttribute(
+        'download',
+        `${this.tripName.replace(/\s+/g, '_')}_expenses.csv`
+      )
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     },
 
     importData(event) {
@@ -802,7 +838,9 @@ export default {
         reader.onload = (e) => {
           try {
             const data = JSON.parse(e.target.result)
-            const existingTrips = JSON.parse(localStorage.getItem('trips') || '[]')
+            const existingTrips = JSON.parse(
+              localStorage.getItem('trips') || '[]'
+            )
 
             // Handle old format (single trip)
             if (data.tripName !== undefined) {
@@ -811,11 +849,13 @@ export default {
                 name: data.tripName,
                 members: data.members || [],
                 expenses: data.expenses || [],
-                createdAt: data.createdAt || Date.now()
+                createdAt: data.createdAt || Date.now(),
               }
 
               // Update or add the trip
-              const existingIndex = existingTrips.findIndex(t => t.id === tripData.id)
+              const existingIndex = existingTrips.findIndex(
+                (t) => t.id === tripData.id
+              )
               if (existingIndex >= 0) {
                 existingTrips[existingIndex] = tripData
               } else {
@@ -830,8 +870,10 @@ export default {
             else if (data.tripList) {
               // Merge trips, overriding existing ones with same ID
               const mergedTrips = [...existingTrips]
-              data.tripList.forEach(importedTrip => {
-                const existingIndex = mergedTrips.findIndex(t => t.id === importedTrip.id)
+              data.tripList.forEach((importedTrip) => {
+                const existingIndex = mergedTrips.findIndex(
+                  (t) => t.id === importedTrip.id
+                )
                 if (existingIndex >= 0) {
                   mergedTrips[existingIndex] = importedTrip
                 } else {
@@ -859,7 +901,7 @@ export default {
 
     getCrossPaidAmount(payer, receiver) {
       return this.expenses
-        .filter(e => {
+        .filter((e) => {
           if (Array.isArray(e.paidBy)) {
             return e.paidBy.includes(payer) && e.splitWith.includes(receiver)
           }
@@ -869,18 +911,18 @@ export default {
           if (Array.isArray(e.paidBy)) {
             // For multiple payers
             const paidAmount = e.paidAmounts[payer] || 0
-            const splitShare = e.splitAmounts?.[receiver] || e.amount / e.splitWith.length
+            const splitShare =
+              e.splitAmounts?.[receiver] || e.amount / e.splitWith.length
             if (payer === receiver) {
               return sum + splitShare
             }
             return sum + splitShare
-          } else {
-            // For single payer
-            if (e.splitAmounts && e.splitAmounts[receiver]) {
-              return sum + e.splitAmounts[receiver]
-            }
-            return sum + (e.amount / e.splitWith.length)
           }
+          // For single payer
+          if (e.splitAmounts?.[receiver]) {
+            return sum + e.splitAmounts[receiver]
+          }
+          return sum + e.amount / e.splitWith.length
         }, 0)
     },
 
@@ -902,28 +944,29 @@ export default {
 
     getCreditors() {
       return this.members
-        .filter(m => this.getBalance(m) > 0)
+        .filter((m) => this.getBalance(m) > 0)
         .sort((a, b) => this.getBalance(b) - this.getBalance(a))
     },
 
     getDebtors() {
       return this.members
-        .filter(m => this.getBalance(m) < 0)
+        .filter((m) => this.getBalance(m) < 0)
         .sort((a, b) => this.getBalance(a) - this.getBalance(b))
     },
 
     getOwedAmount(debtor, creditor) {
-      const payment = this.getPaymentPlan()
-        .find(p => p.from === debtor && p.to === creditor)
+      const payment = this.getPaymentPlan().find(
+        (p) => p.from === debtor && p.to === creditor
+      )
       return payment ? `¥${Math.round(payment.amount)}` : '-'
     },
 
     getCrossTableAmount(expense, member) {
-      if (!expense.splitWith.includes(member)) return 0;
-      if (expense.splitAmounts && expense.splitAmounts[member]) {
-        return expense.splitAmounts[member];
+      if (!expense.splitWith.includes(member)) return 0
+      if (expense.splitAmounts?.[member]) {
+        return expense.splitAmounts[member]
       }
-      return expense.amount / expense.splitWith.length;
+      return expense.amount / expense.splitWith.length
     },
 
     updateSplitAmounts() {
@@ -999,7 +1042,9 @@ export default {
 
     formatPayers(expense) {
       if (Array.isArray(expense.paidBy)) {
-        return expense.paidBy.map(p => `${p} (¥${expense.paidAmounts[p]})`).join(', ')
+        return expense.paidBy
+          .map((p) => `${p} (¥${expense.paidAmounts[p]})`)
+          .join(', ')
       }
       return expense.paidBy
     },
@@ -1015,7 +1060,11 @@ export default {
     },
 
     updateEditPaidAmounts() {
-      if (!this.editingExpense.amount || this.editingExpense.paidBy.length === 0) return
+      if (
+        !this.editingExpense.amount ||
+        this.editingExpense.paidBy.length === 0
+      )
+        return
 
       const totalAmount = this.editingExpense.amount
       const numPayers = this.editingExpense.paidBy.length
@@ -1037,9 +1086,12 @@ export default {
     },
 
     formatSplitWith(expense) {
-      return expense.splitWith.map(m =>
-        `${m} (¥${Math.round(expense.splitAmounts?.[m] || expense.amount / expense.splitWith.length)})`
-      ).join(', ')
+      return expense.splitWith
+        .map(
+          (m) =>
+            `${m} (¥${Math.round(expense.splitAmounts?.[m] || expense.amount / expense.splitWith.length)})`
+        )
+        .join(', ')
     },
 
     updateAmounts() {
@@ -1056,7 +1108,8 @@ export default {
       const tripUrl = `${window.location.origin}/expense-tracker/trip/${this.currentTripId}`
 
       // Copy to clipboard
-      navigator.clipboard.writeText(tripUrl)
+      navigator.clipboard
+        .writeText(tripUrl)
         .then(() => alert('Trip URL copied to clipboard!'))
         .catch(() => {
           // Fallback if clipboard API fails
@@ -1071,7 +1124,10 @@ export default {
     },
 
     updateURL() {
-      if (this.currentTripId && this.$route.params.tripId !== this.currentTripId) {
+      if (
+        this.currentTripId &&
+        this.$route.params.tripId !== this.currentTripId
+      ) {
         this.$router.replace(`/trip/${this.currentTripId}`)
       }
     },
@@ -1091,12 +1147,10 @@ export default {
     },
   },
   mounted() {
-    console.log('ExpenseTracker mounted, router available:', !!this.$router)
     this.loadTripList()
 
     // Handle route parameters
     if (this.routeTripId) {
-      console.log('Loading trip from route param:', this.routeTripId)
       this.currentTripId = this.routeTripId
       this.loadTrip()
     }
@@ -1122,51 +1176,51 @@ export default {
   watch: {
     currentTripId: {
       handler(newTripId, oldTripId) {
-        console.log('Trip ID changed:', oldTripId, '->', newTripId)
         // Only navigate if the trip ID actually changed and we're not in the initial load
         if (newTripId !== oldTripId && this.$route) {
           if (newTripId) {
-            // Navigate to the trip
-            console.log('Navigating to trip:', newTripId)
             if (this.$route.params.tripId !== newTripId) {
-              console.log('Pushing route:', `/trip/${newTripId}`)
               this.$router.push(`/trip/${newTripId}`)
             }
             this.loadTrip()
           } else {
-            // Navigate to home
-            console.log('Navigating to home')
             if (this.$route.path !== '/') {
               this.$router.push('/')
             }
             this.resetTripData()
           }
         }
-      }
+      },
     },
     'newExpense.paidAmounts': {
       deep: true,
       handler(newVal) {
         if (!newVal) return
-        const total = Object.values(newVal).reduce((sum, amount) => sum + (amount || 0), 0)
+        const total = Object.values(newVal).reduce(
+          (sum, amount) => sum + (amount || 0),
+          0
+        )
         if (total > 0 && Math.abs(total - this.newExpense.amount) > 0.01) {
           this.newExpense.amount = total
           this.updateSplitAmounts()
         }
-      }
+      },
     },
     'editingExpense.paidAmounts': {
       deep: true,
       handler(newVal) {
         if (!newVal || !this.editingExpense) return
-        const total = Object.values(newVal).reduce((sum, amount) => sum + (amount || 0), 0)
+        const total = Object.values(newVal).reduce(
+          (sum, amount) => sum + (amount || 0),
+          0
+        )
         if (total > 0 && Math.abs(total - this.editingExpense.amount) > 0.01) {
           this.editingExpense.amount = total
           this.updateEditSplitAmounts()
         }
-      }
-    }
-  }
+      },
+    },
+  },
 }
 </script>
 

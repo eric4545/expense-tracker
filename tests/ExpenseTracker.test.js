@@ -1,13 +1,13 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ExpenseTracker from '../src/components/ExpenseTracker.vue'
 
 // Mock ThemeToggle component
 vi.mock('../src/components/ThemeToggle.vue', () => ({
   default: {
     name: 'ThemeToggle',
-    template: '<div>Theme Toggle</div>'
-  }
+    template: '<div>Theme Toggle</div>',
+  },
 }))
 
 describe('ExpenseTracker', () => {
@@ -24,20 +24,20 @@ describe('ExpenseTracker', () => {
     // Mock router and route
     mockRouter = {
       push: vi.fn(),
-      replace: vi.fn()
+      replace: vi.fn(),
     }
     mockRoute = {
       params: {},
-      path: '/'
+      path: '/',
     }
 
     wrapper = mount(ExpenseTracker, {
       global: {
         mocks: {
           $router: mockRouter,
-          $route: mockRoute
-        }
-      }
+          $route: mockRoute,
+        },
+      },
     })
   })
 
@@ -74,22 +74,39 @@ describe('ExpenseTracker', () => {
 
       expect(localStorage.setItem).toHaveBeenCalled()
       expect(wrapper.vm.currentTripId).toBeTruthy()
-      expect(mockRouter.replace).toHaveBeenCalledWith(`/trip/${wrapper.vm.currentTripId}`)
+      expect(mockRouter.replace).toHaveBeenCalledWith(
+        `/trip/${wrapper.vm.currentTripId}`
+      )
     })
 
     it('should navigate when trip selection changes', async () => {
       const tripId = 'test-trip-123'
+
+      // Set up a spy to watch for router calls
+      mockRouter.push.mockClear()
+
+      // Trigger the reactive change by setting currentTripId
       wrapper.vm.currentTripId = tripId
 
-      await wrapper.vm.onTripChange()
+      // Wait for Vue's reactivity to trigger the watcher
+      await wrapper.vm.$nextTick()
 
       expect(mockRouter.push).toHaveBeenCalledWith(`/trip/${tripId}`)
     })
 
     it('should navigate to home when no trip selected', async () => {
+      // First set a trip ID, then clear it to trigger navigation
+      wrapper.vm.currentTripId = 'some-trip-id'
+      await wrapper.vm.$nextTick()
+
+      // Update mock route to simulate being on a trip page
+      mockRoute.path = '/trip/some-trip-id'
+
+      mockRouter.push.mockClear()
       wrapper.vm.currentTripId = ''
 
-      await wrapper.vm.onTripChange()
+      // Wait for Vue's reactivity to trigger the watcher
+      await wrapper.vm.$nextTick()
 
       expect(mockRouter.push).toHaveBeenCalledWith('/')
     })
@@ -102,21 +119,21 @@ describe('ExpenseTracker', () => {
         id: tripId,
         name: 'Test Trip',
         members: ['Alice', 'Bob'],
-        expenses: []
+        expenses: [],
       }
 
       localStorage.getItem.mockReturnValue(JSON.stringify([mockTripData]))
 
       const wrapperWithRoute = mount(ExpenseTracker, {
         props: {
-          routeTripId: tripId
+          routeTripId: tripId,
         },
         global: {
           mocks: {
             $router: mockRouter,
-            $route: { params: { tripId } }
-          }
-        }
+            $route: { params: { tripId } },
+          },
+        },
       })
 
       expect(wrapperWithRoute.vm.currentTripId).toBe(tripId)
@@ -127,14 +144,14 @@ describe('ExpenseTracker', () => {
 
       const wrapperWithExpense = mount(ExpenseTracker, {
         props: {
-          routeExpenseId: expenseId
+          routeExpenseId: expenseId,
         },
         global: {
           mocks: {
             $router: mockRouter,
-            $route: { params: { expenseId } }
-          }
-        }
+            $route: { params: { expenseId } },
+          },
+        },
       })
 
       expect(wrapperWithExpense.props().routeExpenseId).toBe(expenseId)
@@ -178,7 +195,7 @@ describe('ExpenseTracker', () => {
         paidAmounts: { Alice: 100 },
         splitWith: ['Alice', 'Bob'],
         splitAmounts: { Alice: 50, Bob: 50 },
-        date: '2024-01-01'
+        date: '2024-01-01',
       }
     })
 
@@ -198,7 +215,9 @@ describe('ExpenseTracker', () => {
       await wrapper.vm.addExpense()
 
       expect(wrapper.vm.expenses).toHaveLength(0)
-      expect(window.alert).toHaveBeenCalledWith('Total paid amounts must equal the expense amount')
+      expect(window.alert).toHaveBeenCalledWith(
+        'Total paid amounts must equal the expense amount'
+      )
     })
 
     it('should remove expense', async () => {
@@ -236,8 +255,8 @@ describe('ExpenseTracker', () => {
           amount: 100,
           paidBy: 'Alice',
           splitWith: ['Alice', 'Bob'],
-          splitAmounts: { Alice: 50, Bob: 50 }
-        }
+          splitAmounts: { Alice: 50, Bob: 50 },
+        },
       ]
     })
 
@@ -277,23 +296,23 @@ describe('ExpenseTracker', () => {
             id: 'test-trip',
             name: 'Imported Trip',
             members: ['Alice'],
-            expenses: []
-          }
-        ]
+            expenses: [],
+          },
+        ],
       }
 
       const mockEvent = {
         target: {
           files: [new File([JSON.stringify(mockData)], 'test.json')],
-          value: ''
-        }
+          value: '',
+        },
       }
 
       // Mock FileReader
       const mockFileReader = {
         readAsText: vi.fn(),
         onload: null,
-        result: JSON.stringify(mockData)
+        result: JSON.stringify(mockData),
       }
 
       global.FileReader = vi.fn(() => mockFileReader)
