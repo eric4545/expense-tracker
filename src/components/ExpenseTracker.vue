@@ -398,13 +398,11 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue';
-import CsvImport from './CsvImport.vue';
 import ThemeToggle from './ThemeToggle.vue';
 
 export default {
   name: 'ExpenseTracker',
   components: {
-    CsvImport,
     ThemeToggle
   },
   data() {
