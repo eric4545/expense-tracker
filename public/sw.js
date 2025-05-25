@@ -1,4 +1,4 @@
-const CACHE_NAME = 'expense-tracker-v5';
+const CACHE_NAME = 'expense-tracker-v6';
 const isGitHubPages = self.location.hostname === 'eric4545.github.io';
 const BASE_URL = isGitHubPages ? '/expense-tracker' : '';
 
