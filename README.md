@@ -13,6 +13,7 @@ A simple and intuitive expense tracking application built with Vue.js that helps
 - 📱 Responsive design for mobile and desktop
 - 🌐 Works offline (PWA support)
 - 📊 CSV import and export for bulk expenses
+- 🌙 Dark mode support with system preference detection
 
 ## 🚀 Quick Start
 
@@ -167,3 +168,18 @@ The app supports both importing and exporting CSV files:
    2024-01-17,Dinner,100,Alice,"Alice,Bob,Charlie",
    2024-01-18,Taxi,60,Bob,"Bob,Charlie",
    ```
+
+### Dark Mode
+
+The app includes a built-in dark mode toggle:
+
+1. **Manual Toggle**: Click the sun/moon icon in the top-right corner to switch between light and dark themes
+2. **System Preference**: The app automatically detects your system's color scheme preference
+3. **Persistent**: Your theme choice is saved and remembered for future visits
+4. **Responsive**: The theme affects all UI elements including forms, tables, and buttons
+
+Features:
+- Smooth transitions between themes
+- High contrast for better accessibility
+- Consistent styling across all components
+- Respects system dark mode preference by default

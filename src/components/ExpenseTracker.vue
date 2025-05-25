@@ -1,6 +1,9 @@
 <template>
   <div class="container mt-4">
-    <h1>{{ tripName }} Expense Tracker</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>{{ tripName }} Expense Tracker</h1>
+      <ThemeToggle />
+    </div>
 
     <!-- Trip Management -->
     <div class="mb-4">
@@ -394,8 +397,16 @@
 </template>
 
 <script>
+import { ref, computed, onMounted } from 'vue';
+import CsvImport from './CsvImport.vue';
+import ThemeToggle from './ThemeToggle.vue';
+
 export default {
   name: 'ExpenseTracker',
+  components: {
+    CsvImport,
+    ThemeToggle
+  },
   data() {
     return {
       tripName: 'New Trip',
