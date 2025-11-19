@@ -398,6 +398,202 @@ describe('ExpenseTracker', () => {
         )
         expect(Math.round(totalShouldPay)).toBe(1300 + 650)
       })
+
+      it('should handle comprehensive real-world scenario with multiple expenses', () => {
+        // Set up 13 members
+        wrapper.vm.members = [
+          'Alice',
+          'Bob',
+          'Charlie',
+          'David',
+          'Eve',
+          'Frank',
+          'Grace',
+          'Henry',
+          'Iris',
+          'Jack',
+          'Kate',
+          'Leo',
+          'Mike',
+        ]
+
+        // Alice pays for most expenses
+        wrapper.vm.expenses = [
+          {
+            description: 'Drinks',
+            amount: 12754,
+            paidBy: ['Alice'],
+            paidAmounts: { Alice: 12754 },
+            splitWith: [
+              'Alice',
+              'Bob',
+              'Charlie',
+              'David',
+              'Eve',
+              'Grace',
+              'Henry',
+              'Iris',
+              'Jack',
+              'Leo',
+              'Mike',
+            ], // 11 people
+            splitAmounts: {
+              Alice: 1159,
+              Bob: 1159,
+              Charlie: 1159,
+              David: 1159,
+              Eve: 1159,
+              Grace: 1159,
+              Henry: 1159,
+              Iris: 1159,
+              Jack: 1159,
+              Leo: 1159,
+              Mike: 1164,
+            },
+            date: '2024-01-01',
+          },
+          {
+            description: 'Accommodation',
+            amount: 98500,
+            paidBy: ['Alice'],
+            paidAmounts: { Alice: 98500 },
+            splitWith: [
+              'Alice',
+              'Bob',
+              'Charlie',
+              'David',
+              'Eve',
+              'Frank',
+              'Grace',
+              'Henry',
+              'Iris',
+              'Jack',
+              'Kate',
+              'Leo',
+              'Mike',
+            ], // All 13 people
+            splitAmounts: { Leo: 10000 }, // Leo has special amount, rest split equally
+            date: '2024-01-01',
+          },
+          {
+            description: 'Groceries',
+            amount: 4178,
+            paidBy: ['Alice'],
+            paidAmounts: { Alice: 4178 },
+            splitWith: [
+              'Alice',
+              'Bob',
+              'Charlie',
+              'David',
+              'Eve',
+              'Frank',
+              'Grace',
+              'Henry',
+              'Iris',
+              'Jack',
+              'Kate',
+              'Leo',
+              'Mike',
+            ],
+            splitAmounts: {
+              Alice: 321,
+              Bob: 321,
+              Charlie: 321,
+              David: 321,
+              Eve: 321,
+              Frank: 321,
+              Grace: 321,
+              Henry: 321,
+              Iris: 321,
+              Jack: 321,
+              Kate: 321,
+              Leo: 321,
+              Mike: 326,
+            },
+            date: '2024-01-01',
+          },
+          {
+            description: 'Zoo Tickets',
+            amount: 58900,
+            paidBy: ['Henry'],
+            paidAmounts: { Henry: 58900 },
+            splitWith: [
+              'Alice',
+              'Bob',
+              'Charlie',
+              'David',
+              'Eve',
+              'Frank',
+              'Grace',
+              'Henry',
+              'Iris',
+              'Jack',
+              'Kate',
+              'Leo',
+              'Mike',
+            ],
+            splitAmounts: { Leo: 6500 }, // Leo has special amount
+            date: '2024-01-01',
+          },
+          {
+            description: 'Ramen',
+            amount: 10900,
+            paidBy: ['Iris'],
+            paidAmounts: { Iris: 10900 },
+            splitWith: ['Alice', 'Iris', 'Eve', 'Bob', 'Grace', 'David', 'Leo'], // 7 people
+            splitAmounts: {
+              Alice: 1557,
+              Iris: 1557,
+              Eve: 1557,
+              Bob: 1557,
+              Grace: 1557,
+              David: 1557,
+              Leo: 1558,
+            },
+            date: '2024-01-02',
+          },
+        ]
+
+        // Alice paid: 12754 + 98500 + 4178 = 115432
+        const alicePaid = wrapper.vm.getTotalPaid('Alice')
+        expect(alicePaid).toBe(115432)
+
+        // Alice should pay:
+        // - Drinks: 1159
+        // - Accommodation: (98500 - 10000) / 12 = 7375
+        // - Groceries: 321
+        // - Zoo: (58900 - 6500) / 12 = 4366.67
+        // - Ramen: 1557
+        // Total: 1159 + 7375 + 321 + 4366.67 + 1557 = 14778.67
+        const aliceShouldPay = wrapper.vm.getTotalShouldPay('Alice')
+        expect(Math.round(aliceShouldPay)).toBe(
+          Math.round(1159 + 7375 + 321 + 4366.67 + 1557),
+        )
+
+        // Alice's balance should be: 115432 - 14778.67 = 100653.33
+        const aliceBalance = wrapper.vm.getBalance('Alice')
+        expect(Math.round(aliceBalance)).toBe(
+          Math.round(115432 - (1159 + 7375 + 321 + 4366.67 + 1557)),
+        )
+
+        // Leo should pay:
+        // - Drinks: 1159
+        // - Accommodation: 10000 (special amount)
+        // - Groceries: 321
+        // - Zoo: 6500 (special amount)
+        // - Ramen: 1558
+        // Total: 19538
+        const leoShouldPay = wrapper.vm.getTotalShouldPay('Leo')
+        expect(leoShouldPay).toBe(1159 + 10000 + 321 + 6500 + 1558)
+
+        // Verify all totals add up correctly
+        const totalExpenses = 12754 + 98500 + 4178 + 58900 + 10900
+        const totalShouldPay = wrapper.vm.members.reduce(
+          (sum, member) => sum + wrapper.vm.getTotalShouldPay(member),
+          0,
+        )
+        expect(Math.round(totalShouldPay)).toBe(totalExpenses)
+      })
     })
   })
 
