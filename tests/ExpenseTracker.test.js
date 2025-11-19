@@ -315,14 +315,42 @@ describe('ExpenseTracker', () => {
 
       it('should handle complex scenario with multiple members and partial splits', () => {
         // Simulate a scenario with 13 people where one person has a different split amount
-        wrapper.vm.members = ['Person1', 'Person2', 'Person3', 'Person4', 'Person5', 'Person6', 'Person7', 'Person8', 'Person9', 'Person10', 'Person11', 'Person12', 'Person13']
+        wrapper.vm.members = [
+          'Person1',
+          'Person2',
+          'Person3',
+          'Person4',
+          'Person5',
+          'Person6',
+          'Person7',
+          'Person8',
+          'Person9',
+          'Person10',
+          'Person11',
+          'Person12',
+          'Person13',
+        ]
         wrapper.vm.expenses = [
           {
             description: 'Hotel',
             amount: 1300,
             paidBy: ['Person1'],
             paidAmounts: { Person1: 1300 },
-            splitWith: ['Person1', 'Person2', 'Person3', 'Person4', 'Person5', 'Person6', 'Person7', 'Person8', 'Person9', 'Person10', 'Person11', 'Person12', 'Person13'],
+            splitWith: [
+              'Person1',
+              'Person2',
+              'Person3',
+              'Person4',
+              'Person5',
+              'Person6',
+              'Person7',
+              'Person8',
+              'Person9',
+              'Person10',
+              'Person11',
+              'Person12',
+              'Person13',
+            ],
             splitAmounts: { Person12: 200 }, // Person12 has a special rate
             date: '2024-01-01',
           },
@@ -331,7 +359,21 @@ describe('ExpenseTracker', () => {
             amount: 650,
             paidBy: ['Person8'],
             paidAmounts: { Person8: 650 },
-            splitWith: ['Person1', 'Person2', 'Person3', 'Person4', 'Person5', 'Person6', 'Person7', 'Person8', 'Person9', 'Person10', 'Person11', 'Person12', 'Person13'],
+            splitWith: [
+              'Person1',
+              'Person2',
+              'Person3',
+              'Person4',
+              'Person5',
+              'Person6',
+              'Person7',
+              'Person8',
+              'Person9',
+              'Person10',
+              'Person11',
+              'Person12',
+              'Person13',
+            ],
             splitAmounts: { Person12: 50 }, // Person12 has a special rate
             date: '2024-01-01',
           },
@@ -345,7 +387,9 @@ describe('ExpenseTracker', () => {
         // For Hotel: (1300 - 200) / 12 = 91.67
         // For Museum: (650 - 50) / 12 = 50
         const person9ShouldPay = wrapper.vm.getTotalShouldPay('Person9')
-        expect(Math.round(person9ShouldPay * 100) / 100).toBe(Math.round((1100 / 12 + 600 / 12) * 100) / 100)
+        expect(Math.round(person9ShouldPay * 100) / 100).toBe(
+          Math.round((1100 / 12 + 600 / 12) * 100) / 100
+        )
 
         // Verify total adds up correctly
         const totalShouldPay = wrapper.vm.members.reduce(

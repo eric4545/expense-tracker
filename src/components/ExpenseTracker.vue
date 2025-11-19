@@ -705,13 +705,12 @@ export default {
             total += expense.splitAmounts[member]
           } else {
             // Calculate remaining amount after accounting for specified split amounts
-            const specifiedTotal = Object.values(expense.splitAmounts || {}).reduce(
-              (sum, amount) => sum + amount,
-              0
-            )
+            const specifiedTotal = Object.values(
+              expense.splitAmounts || {}
+            ).reduce((sum, amount) => sum + amount, 0)
             const remainingAmount = expense.amount - specifiedTotal
             const membersWithoutSpecifiedAmount = expense.splitWith.filter(
-              m => !expense.splitAmounts?.[m]
+              (m) => !expense.splitAmounts?.[m]
             ).length
 
             if (membersWithoutSpecifiedAmount > 0) {
@@ -937,11 +936,12 @@ export default {
               )
               const remainingAmount = e.amount - specifiedTotal
               const membersWithoutSpecifiedAmount = e.splitWith.filter(
-                m => !e.splitAmounts?.[m]
+                (m) => !e.splitAmounts?.[m]
               ).length
-              splitShare = membersWithoutSpecifiedAmount > 0
-                ? remainingAmount / membersWithoutSpecifiedAmount
-                : e.amount / e.splitWith.length
+              splitShare =
+                membersWithoutSpecifiedAmount > 0
+                  ? remainingAmount / membersWithoutSpecifiedAmount
+                  : e.amount / e.splitWith.length
             }
             if (payer === receiver) {
               return sum + splitShare
@@ -959,11 +959,14 @@ export default {
           )
           const remainingAmount = e.amount - specifiedTotal
           const membersWithoutSpecifiedAmount = e.splitWith.filter(
-            m => !e.splitAmounts?.[m]
+            (m) => !e.splitAmounts?.[m]
           ).length
-          return sum + (membersWithoutSpecifiedAmount > 0
-            ? remainingAmount / membersWithoutSpecifiedAmount
-            : e.amount / e.splitWith.length)
+          return (
+            sum +
+            (membersWithoutSpecifiedAmount > 0
+              ? remainingAmount / membersWithoutSpecifiedAmount
+              : e.amount / e.splitWith.length)
+          )
         }, 0)
     },
 
@@ -1014,7 +1017,7 @@ export default {
       )
       const remainingAmount = expense.amount - specifiedTotal
       const membersWithoutSpecifiedAmount = expense.splitWith.filter(
-        m => !expense.splitAmounts?.[m]
+        (m) => !expense.splitAmounts?.[m]
       ).length
 
       if (membersWithoutSpecifiedAmount > 0) {
@@ -1147,17 +1150,17 @@ export default {
             amount = expense.splitAmounts[m]
           } else {
             // Calculate remaining amount after accounting for specified split amounts
-            const specifiedTotal = Object.values(expense.splitAmounts || {}).reduce(
-              (sum, amt) => sum + amt,
-              0
-            )
+            const specifiedTotal = Object.values(
+              expense.splitAmounts || {}
+            ).reduce((sum, amt) => sum + amt, 0)
             const remainingAmount = expense.amount - specifiedTotal
             const membersWithoutSpecifiedAmount = expense.splitWith.filter(
-              member => !expense.splitAmounts?.[member]
+              (member) => !expense.splitAmounts?.[member]
             ).length
-            amount = membersWithoutSpecifiedAmount > 0
-              ? remainingAmount / membersWithoutSpecifiedAmount
-              : expense.amount / expense.splitWith.length
+            amount =
+              membersWithoutSpecifiedAmount > 0
+                ? remainingAmount / membersWithoutSpecifiedAmount
+                : expense.amount / expense.splitWith.length
           }
           return `${m} (¥${Math.round(amount)})`
         })
