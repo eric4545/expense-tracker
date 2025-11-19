@@ -274,6 +274,87 @@ describe('ExpenseTracker', () => {
       expect(wrapper.vm.getBalance('Alice')).toBe(50) // Paid 100, should pay 50
       expect(wrapper.vm.getBalance('Bob')).toBe(-50) // Paid 0, should pay 50
     })
+
+    describe('Partial Split Amounts', () => {
+      beforeEach(() => {
+        wrapper.vm.members = ['Alice', 'Bob', 'Charlie']
+        wrapper.vm.expenses = [
+          {
+            description: 'Accommodation',
+            amount: 300,
+            paidBy: 'Alice',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: { Alice: 100 }, // Only Alice has a specified amount
+          },
+        ]
+      })
+
+      it('should calculate total should pay correctly with partial split amounts', () => {
+        // Alice has specified amount of 100
+        expect(wrapper.vm.getTotalShouldPay('Alice')).toBe(100)
+
+        // Bob and Charlie should split the remaining 200 equally (100 each)
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBe(100)
+        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBe(100)
+
+        // Total should equal the expense amount
+        const total =
+          wrapper.vm.getTotalShouldPay('Alice') +
+          wrapper.vm.getTotalShouldPay('Bob') +
+          wrapper.vm.getTotalShouldPay('Charlie')
+        expect(total).toBe(300)
+      })
+
+      it('should calculate getCrossTableAmount correctly with partial split amounts', () => {
+        const expense = wrapper.vm.expenses[0]
+
+        expect(wrapper.vm.getCrossTableAmount(expense, 'Alice')).toBe(100)
+        expect(wrapper.vm.getCrossTableAmount(expense, 'Bob')).toBe(100)
+        expect(wrapper.vm.getCrossTableAmount(expense, 'Charlie')).toBe(100)
+      })
+
+      it('should handle complex scenario with multiple members and partial splits', () => {
+        // Simulate a scenario with 13 people where one person has a different split amount
+        wrapper.vm.members = ['Person1', 'Person2', 'Person3', 'Person4', 'Person5', 'Person6', 'Person7', 'Person8', 'Person9', 'Person10', 'Person11', 'Person12', 'Person13']
+        wrapper.vm.expenses = [
+          {
+            description: 'Hotel',
+            amount: 1300,
+            paidBy: ['Person1'],
+            paidAmounts: { Person1: 1300 },
+            splitWith: ['Person1', 'Person2', 'Person3', 'Person4', 'Person5', 'Person6', 'Person7', 'Person8', 'Person9', 'Person10', 'Person11', 'Person12', 'Person13'],
+            splitAmounts: { Person12: 200 }, // Person12 has a special rate
+            date: '2024-01-01',
+          },
+          {
+            description: 'Museum Tickets',
+            amount: 650,
+            paidBy: ['Person8'],
+            paidAmounts: { Person8: 650 },
+            splitWith: ['Person1', 'Person2', 'Person3', 'Person4', 'Person5', 'Person6', 'Person7', 'Person8', 'Person9', 'Person10', 'Person11', 'Person12', 'Person13'],
+            splitAmounts: { Person12: 50 }, // Person12 has a special rate
+            date: '2024-01-01',
+          },
+        ]
+
+        // Person12 should pay only their specified amounts
+        const person12ShouldPay = wrapper.vm.getTotalShouldPay('Person12')
+        expect(person12ShouldPay).toBe(250) // 200 + 50
+
+        // Person9 should pay their share of the remaining amounts
+        // For Hotel: (1300 - 200) / 12 = 91.67
+        // For Museum: (650 - 50) / 12 = 50
+        const person9ShouldPay = wrapper.vm.getTotalShouldPay('Person9')
+        expect(Math.round(person9ShouldPay * 100) / 100).toBe(Math.round((1100 / 12 + 600 / 12) * 100) / 100)
+
+        // Verify total adds up correctly
+        const totalShouldPay = wrapper.vm.members.reduce(
+          (sum, member) => sum + wrapper.vm.getTotalShouldPay(member),
+          0
+        )
+        expect(Math.round(totalShouldPay)).toBe(1300 + 650)
+      })
+    })
   })
 
   describe('Data Persistence', () => {
