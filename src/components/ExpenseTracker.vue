@@ -791,40 +791,41 @@ export default {
     },
 
     exportCsv() {
-      // Create CSV header row
+      // Create CSV header row with complete expense information
       const headers = [
         'Date',
         'Description',
-        'Amount',
-        'Paid By',
-        'Split With',
-        'Notes',
+        'Total Amount',
+        'Paid By (with amounts)',
+        'Split With (with amounts)',
       ]
 
-      // Create CSV rows for each expense
+      // Create CSV rows for each expense with full details
       const rows = this.expenses.map((expense) => {
         return [
           expense.date || '',
           expense.description,
           expense.amount,
-          Array.isArray(expense.paidBy)
-            ? expense.paidBy.join(', ')
-            : expense.paidBy,
-          expense.splitWith.join(', '),
-          '',
+          this.formatPayers(expense), // Use existing formatter: "Alice (¥60), Bob (¥40)"
+          this.formatSplitWith(expense), // Use existing formatter: "Alice (¥30), Bob (¥30), Charlie (¥40)"
         ]
       })
 
-      // Combine header and rows
+      // Combine header and rows with proper CSV escaping
       const csvContent = [
         headers.join(','),
         ...rows.map((row) =>
           row
             .map((cell) => {
-              // Handle commas in cell values by quoting
+              // Handle null/undefined
               if (cell === null || cell === undefined) return ''
               const cellStr = String(cell)
-              return cellStr.includes(',') ? `"${cellStr}"` : cellStr
+              // Quote cells that contain commas, quotes, or newlines
+              if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                // Escape quotes by doubling them
+                return `"${cellStr.replace(/"/g, '""')}"`
+              }
+              return cellStr
             })
             .join(',')
         ),
@@ -843,6 +844,7 @@ export default {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      URL.revokeObjectURL(url) // Clean up the URL object
     },
 
     importData(event) {

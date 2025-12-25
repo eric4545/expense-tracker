@@ -646,5 +646,77 @@ describe('ExpenseTracker', () => {
 
       expect(localStorage.setItem).toHaveBeenCalled()
     })
+
+    it('should export CSV with complete expense data including amounts', async () => {
+      // Setup members and expenses with complex splitting
+      wrapper.vm.members = ['Alice', 'Bob', 'Charlie']
+      wrapper.vm.expenses = [
+        {
+          date: '2024-01-15',
+          description: 'Dinner',
+          amount: 150,
+          paidBy: ['Alice', 'Bob'],
+          paidAmounts: { Alice: 90, Bob: 60 },
+          splitWith: ['Alice', 'Bob', 'Charlie'],
+          splitAmounts: { Alice: 50, Bob: 50, Charlie: 50 },
+        },
+        {
+          date: '2024-01-16',
+          description: 'Taxi, with "quotes"',
+          amount: 30,
+          paidBy: ['Charlie'],
+          paidAmounts: { Charlie: 30 },
+          splitWith: ['Alice', 'Bob', 'Charlie'],
+          splitAmounts: { Alice: 10, Bob: 10, Charlie: 10 },
+        },
+      ]
+
+      // Mock Blob and URL
+      const mockBlob = new Blob(['test'], { type: 'text/csv' })
+      global.Blob = vi.fn(() => mockBlob)
+      global.URL.createObjectURL = vi.fn(() => 'blob:csv-url')
+      global.URL.revokeObjectURL = vi.fn()
+
+      // Spy on document.createElement to capture the link
+      const mockLink = {
+        setAttribute: vi.fn(),
+        click: vi.fn(),
+        style: {},
+      }
+      const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockLink)
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => {})
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => {})
+
+      // Call exportCsv
+      wrapper.vm.exportCsv()
+
+      // Verify CSV content includes headers and formatted data
+      expect(global.Blob).toHaveBeenCalled()
+      const blobContent = global.Blob.mock.calls[0][0][0]
+
+      // Check headers
+      expect(blobContent).toContain('Date,Description,Total Amount,Paid By (with amounts),Split With (with amounts)')
+
+      // Check first expense with amounts
+      expect(blobContent).toContain('2024-01-15')
+      expect(blobContent).toContain('Dinner')
+      expect(blobContent).toContain('150')
+      expect(blobContent).toContain('Alice (¥90)')
+      expect(blobContent).toContain('Bob (¥60)')
+      expect(blobContent).toContain('Charlie (¥50)')
+
+      // Check second expense with special characters (quotes should be escaped)
+      expect(blobContent).toContain('2024-01-16')
+      expect(blobContent).toContain('Taxi')
+
+      // Verify download was triggered
+      expect(mockLink.click).toHaveBeenCalled()
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:csv-url')
+
+      // Cleanup spies
+      createElementSpy.mockRestore()
+      appendChildSpy.mockRestore()
+      removeChildSpy.mockRestore()
+    })
   })
 })
