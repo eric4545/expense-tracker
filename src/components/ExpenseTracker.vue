@@ -388,10 +388,48 @@
 
     <!-- Import/Export -->
     <div class="mt-4">
-      <button @click="exportData" class="btn btn-primary me-2">Export Data</button>
-      <button @click="exportCsv" class="btn btn-info me-2">Export to CSV</button>
-      <input type="file" @change="importData" class="form-control d-inline-block w-auto me-2" accept=".json">
-      <button @click="shareViaURL" class="btn btn-success">Share via URL</button>
+      <h5>Export & Sync</h5>
+      <div class="mb-3">
+        <button @click="exportData" class="btn btn-primary me-2 mb-2">Export Data</button>
+        <button @click="exportCsv" class="btn btn-info me-2 mb-2">Export to CSV</button>
+        <input type="file" @change="importData" class="form-control d-inline-block w-auto me-2 mb-2" accept=".json">
+        <button @click="shareViaURL" class="btn btn-success mb-2">Share via URL</button>
+      </div>
+
+      <!-- Google Sheets Integration -->
+      <div class="mb-3">
+        <h6 class="text-muted">Google Sheets Integration</h6>
+        <button v-if="!isGoogleSheetsConnected"
+                @click="connectGoogleSheets"
+                class="btn btn-success me-2 mb-2">
+          <i class="bi bi-google"></i> Connect Google Sheets
+        </button>
+        <template v-else>
+          <button @click="syncToGoogleSheets"
+                  class="btn btn-primary me-2 mb-2"
+                  :disabled="isSyncing">
+            <span v-if="isSyncing">
+              <span class="spinner-border spinner-border-sm me-1"></span>
+              Syncing...
+            </span>
+            <span v-else>
+              <i class="bi bi-cloud-upload"></i> Sync to Google Sheets
+            </span>
+          </button>
+          <button v-if="currentSpreadsheetId"
+                  @click="openSpreadsheet"
+                  class="btn btn-outline-primary me-2 mb-2">
+            <i class="bi bi-box-arrow-up-right"></i> Open Spreadsheet
+          </button>
+          <button @click="disconnectGoogleSheets"
+                  class="btn btn-outline-danger mb-2">
+            <i class="bi bi-x-circle"></i> Disconnect
+          </button>
+        </template>
+        <div v-if="lastSyncTime" class="text-muted small">
+          Last synced: {{ formatLastSyncTime(lastSyncTime) }}
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -399,11 +437,31 @@
 <script>
 import { computed, onMounted, ref } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
+import { useGoogleSheets } from '../composables/useGoogleSheets'
 
 export default {
   name: 'ExpenseTracker',
   components: {
     ThemeToggle,
+  },
+  setup() {
+    const googleSheets = useGoogleSheets()
+
+    return {
+      // Google Sheets state
+      isGoogleSheetsConnected: googleSheets.isAuthenticated,
+      isSyncing: googleSheets.isSyncing,
+      lastSyncTime: googleSheets.lastSyncTime,
+      currentSpreadsheetId: googleSheets.currentSpreadsheetId,
+      googleClientId: googleSheets.clientId,
+
+      // Google Sheets methods
+      googleSheetsAuth: googleSheets.authenticate,
+      googleSheetsSignOut: googleSheets.signOut,
+      googleSheetsSync: googleSheets.syncExpenses,
+      googleSheetsGetUrl: googleSheets.getSpreadsheetUrl,
+      googleSheetsSetClientId: googleSheets.setClientId,
+    }
   },
   props: {
     routeTripId: String,
@@ -1196,6 +1254,110 @@ export default {
           document.body.removeChild(input)
           alert('Trip URL copied to clipboard!')
         })
+    },
+
+    // Google Sheets Integration Methods
+    async connectGoogleSheets() {
+      try {
+        let clientId = this.googleClientId
+
+        // Prompt for Client ID if not configured
+        if (!clientId) {
+          clientId = prompt(
+            'Enter your Google OAuth Client ID:\n\n' +
+            'To get a Client ID:\n' +
+            '1. Go to console.cloud.google.com\n' +
+            '2. Create a project and enable Google Sheets API\n' +
+            '3. Create OAuth 2.0 Client ID (Web application)\n' +
+            '4. Add authorized redirect URI: ' + window.location.origin + '/expense-tracker/\n' +
+            '5. Copy the Client ID and paste below'
+          )
+
+          if (!clientId) {
+            alert('Client ID is required to connect to Google Sheets')
+            return
+          }
+
+          this.googleSheetsSetClientId(clientId)
+        }
+
+        await this.googleSheetsAuth(clientId)
+        alert('Successfully connected to Google Sheets!')
+      } catch (error) {
+        console.error('Failed to connect to Google Sheets:', error)
+        alert('Failed to connect to Google Sheets. Please check your Client ID and try again.')
+      }
+    },
+
+    async syncToGoogleSheets() {
+      if (this.expenses.length === 0) {
+        alert('No expenses to sync')
+        return
+      }
+
+      try {
+        const result = await this.googleSheetsSync(
+          this.expenses,
+          this.members,
+          this.tripName,
+          this.getPaymentPlan(),
+          this.formatPayers,
+          this.formatSplitWith
+        )
+
+        alert(`Successfully synced to Google Sheets!\n\nSpreadsheet URL:\n${result.url}`)
+      } catch (error) {
+        console.error('Failed to sync to Google Sheets:', error)
+
+        // Check if token expired
+        if (error.message.includes('401') || error.message.includes('Not authenticated')) {
+          const retry = confirm('Session expired. Reconnect to Google Sheets?')
+          if (retry) {
+            await this.connectGoogleSheets()
+            // Try sync again
+            await this.syncToGoogleSheets()
+          }
+        } else {
+          alert('Failed to sync to Google Sheets. Please try again.')
+        }
+      }
+    },
+
+    openSpreadsheet() {
+      const url = this.googleSheetsGetUrl()
+      if (url) {
+        window.open(url, '_blank')
+      }
+    },
+
+    disconnectGoogleSheets() {
+      const confirm = window.confirm(
+        'Are you sure you want to disconnect from Google Sheets?\n\n' +
+        'Your spreadsheet will remain in Google Drive, but you will need to reconnect to sync again.'
+      )
+
+      if (confirm) {
+        this.googleSheetsSignOut()
+        alert('Disconnected from Google Sheets')
+      }
+    },
+
+    formatLastSyncTime(isoString) {
+      if (!isoString) return ''
+
+      const date = new Date(isoString)
+      const now = new Date()
+      const diffMs = now - date
+      const diffMins = Math.floor(diffMs / 60000)
+      const diffHours = Math.floor(diffMs / 3600000)
+      const diffDays = Math.floor(diffMs / 86400000)
+
+      if (diffMins < 1) return 'Just now'
+      if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+      if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+
+      return date.toLocaleDateString()
     },
 
     updateURL() {
