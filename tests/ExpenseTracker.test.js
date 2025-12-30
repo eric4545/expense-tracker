@@ -719,4 +719,185 @@ describe('ExpenseTracker', () => {
       removeChildSpy.mockRestore()
     })
   })
+
+  describe('Google Sheets Integration', () => {
+    beforeEach(() => {
+      // Mock Google Identity Services
+      global.google = {
+        accounts: {
+          oauth2: {
+            initTokenClient: vi.fn(() => ({
+              requestAccessToken: vi.fn(),
+            })),
+            revoke: vi.fn(),
+          },
+        },
+      }
+
+      // Mock fetch for Google Sheets API
+      global.fetch = vi.fn()
+
+      // Mock window methods
+      global.prompt = vi.fn()
+      global.alert = vi.fn()
+      global.confirm = vi.fn()
+    })
+
+    it('should prompt for Client ID on first connect when not configured', () => {
+      global.prompt.mockReturnValueOnce(null) // User cancels
+
+      wrapper.vm.connectGoogleSheets()
+
+      expect(global.prompt).toHaveBeenCalled()
+      expect(global.prompt.mock.calls[0][0]).toContain('Enter your Google OAuth Client ID')
+    })
+
+    it('should not prompt if Client ID already configured', () => {
+      // Set up pre-configured client ID
+      wrapper.vm.googleSheetsSetClientId('existing-client-id')
+
+      expect(wrapper.vm.googleClientId).toBe('existing-client-id')
+    })
+
+    it('should show alert when no expenses to sync', async () => {
+      wrapper.vm.expenses = []
+
+      await wrapper.vm.syncToGoogleSheets()
+
+      expect(global.alert).toHaveBeenCalledWith('No expenses to sync')
+    })
+
+    it('should call sync method when authenticated with expenses', async () => {
+      // Set up authenticated state
+      const futureTime = (Date.now() + 3600000).toString()
+      localStorage.setItem('google-sheets-token', 'test-token')
+      localStorage.setItem('google-sheets-token-expiry', futureTime)
+      localStorage.setItem('google-sheets-spreadsheet-id', 'test-spreadsheet-id')
+
+      // Create new wrapper to pick up localStorage
+      const authWrapper = mount(ExpenseTracker, {
+        global: {
+          mocks: {
+            $router: mockRouter,
+            $route: mockRoute,
+          },
+        },
+      })
+
+      // Set up test data
+      authWrapper.vm.members = ['Alice', 'Bob']
+      authWrapper.vm.tripName = 'Test Trip'
+      authWrapper.vm.expenses = [
+        {
+          date: '2024-01-15',
+          description: 'Dinner',
+          amount: 100,
+          paidBy: ['Alice'],
+          paidAmounts: { Alice: 100 },
+          splitWith: ['Alice', 'Bob'],
+          splitAmounts: { Alice: 50, Bob: 50 },
+        },
+      ]
+
+      // Spy on the sync method
+      const syncSpy = vi.spyOn(authWrapper.vm, 'googleSheetsSync')
+      syncSpy.mockResolvedValueOnce({
+        success: true,
+        spreadsheetId: 'test-id',
+        url: 'https://docs.google.com/spreadsheets/d/test-id',
+      })
+
+      await authWrapper.vm.syncToGoogleSheets()
+
+      expect(syncSpy).toHaveBeenCalled()
+      expect(global.alert).toHaveBeenCalled()
+    })
+
+    it('should open spreadsheet in new tab', () => {
+      global.open = vi.fn()
+
+      // Manually set the spreadsheet ID in the component
+      wrapper.vm.currentSpreadsheetId = 'test-spreadsheet-id-123'
+
+      wrapper.vm.openSpreadsheet()
+
+      expect(global.open).toHaveBeenCalledWith(
+        'https://docs.google.com/spreadsheets/d/test-spreadsheet-id-123',
+        '_blank'
+      )
+    })
+
+    it('should disconnect from Google Sheets with confirmation', () => {
+      global.confirm.mockReturnValueOnce(true)
+
+      // Set up authenticated state
+      localStorage.setItem('google-sheets-token', 'test-token')
+      localStorage.setItem('google-sheets-spreadsheet-id', 'test-id')
+
+      wrapper.vm.disconnectGoogleSheets()
+
+      expect(global.confirm).toHaveBeenCalled()
+      expect(global.alert).toHaveBeenCalledWith('Disconnected from Google Sheets')
+    })
+
+    it('should not disconnect if user cancels', () => {
+      global.confirm.mockReturnValueOnce(false)
+
+      const tokenBefore = localStorage.getItem('google-sheets-token')
+      wrapper.vm.disconnectGoogleSheets()
+      const tokenAfter = localStorage.getItem('google-sheets-token')
+
+      expect(tokenBefore).toBe(tokenAfter)
+      expect(global.alert).not.toHaveBeenCalledWith('Disconnected from Google Sheets')
+    })
+
+    it('should format last sync time correctly', () => {
+      const now = new Date()
+      const oneMinuteAgo = new Date(now - 60 * 1000).toISOString()
+      const oneHourAgo = new Date(now - 60 * 60 * 1000).toISOString()
+      const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString()
+
+      expect(wrapper.vm.formatLastSyncTime(oneMinuteAgo)).toContain('minute')
+      expect(wrapper.vm.formatLastSyncTime(oneHourAgo)).toContain('hour')
+      expect(wrapper.vm.formatLastSyncTime(oneDayAgo)).toContain('day')
+    })
+
+    it('should handle sync errors gracefully', async () => {
+      // Set up authenticated state first
+      const futureTime = (Date.now() + 3600000).toString()
+      localStorage.setItem('google-sheets-token', 'test-token')
+      localStorage.setItem('google-sheets-token-expiry', futureTime)
+
+      const errorWrapper = mount(ExpenseTracker, {
+        global: {
+          mocks: {
+            $router: mockRouter,
+            $route: mockRoute,
+          },
+        },
+      })
+
+      errorWrapper.vm.members = ['Alice']
+      errorWrapper.vm.tripName = 'Test Trip'
+      errorWrapper.vm.expenses = [
+        {
+          date: '2024-01-15',
+          description: 'Test',
+          amount: 100,
+          paidBy: ['Alice'],
+          paidAmounts: { Alice: 100 },
+          splitWith: ['Alice'],
+          splitAmounts: { Alice: 100 },
+        },
+      ]
+
+      // Spy and mock the sync method to throw error
+      const syncSpy = vi.spyOn(errorWrapper.vm, 'googleSheetsSync')
+      syncSpy.mockRejectedValueOnce(new Error('Network error'))
+
+      await errorWrapper.vm.syncToGoogleSheets()
+
+      expect(global.alert).toHaveBeenCalled()
+    })
+  })
 })
