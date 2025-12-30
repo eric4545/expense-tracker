@@ -743,13 +743,16 @@ describe('ExpenseTracker', () => {
       global.confirm = vi.fn()
     })
 
-    it('should prompt for Client ID on first connect when not configured', () => {
+    it('should prompt for Client ID on first connect when not configured', async () => {
       global.prompt.mockReturnValueOnce(null) // User cancels
+      global.alert.mockClear() // Clear any previous alerts
 
-      wrapper.vm.connectGoogleSheets()
+      await wrapper.vm.connectGoogleSheets()
 
       expect(global.prompt).toHaveBeenCalled()
-      expect(global.prompt.mock.calls[0][0]).toContain('Enter your Google OAuth Client ID')
+      const promptMessage = global.prompt.mock.calls[0][0]
+      expect(promptMessage).toContain('Enter your Google OAuth Client ID')
+      expect(promptMessage).toContain('console.cloud.google.com')
     })
 
     it('should not prompt if Client ID already configured', () => {
