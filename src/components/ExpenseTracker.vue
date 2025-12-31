@@ -416,7 +416,7 @@
               <i class="bi bi-cloud-upload"></i> Sync to Google Sheets
             </span>
           </button>
-          <button v-if="currentSpreadsheetId"
+          <button v-if="googleSheetsId"
                   @click="openSpreadsheet"
                   class="btn btn-outline-primary me-2 mb-2">
             <i class="bi bi-box-arrow-up-right"></i> Open Spreadsheet
@@ -476,6 +476,7 @@ export default {
       members: [],
       newMember: '',
       expenses: [],
+      googleSheetsId: null, // Store Google Sheets ID for this trip
       newExpense: {
         description: '',
         amount: null,
@@ -554,6 +555,7 @@ export default {
         members: this.members,
         expenses: this.expenses,
         createdAt: Date.now(),
+        googleSheetsId: this.googleSheetsId || null, // Store spreadsheet ID per trip
       }
 
       const existingIndex = trips.findIndex((t) => t.id === tripData.id)
@@ -599,6 +601,7 @@ export default {
         this.tripDescription = trip.description || ''
         this.members = trip.members
         this.expenses = trip.expenses
+        this.googleSheetsId = trip.googleSheetsId || null // Load spreadsheet ID
       }
     },
 
@@ -615,6 +618,7 @@ export default {
       this.tripDescription = ''
       this.members = []
       this.expenses = []
+      this.googleSheetsId = null
       this.newMember = ''
       this.newExpense = {
         description: '',
@@ -1302,8 +1306,13 @@ export default {
           this.tripName,
           this.getPaymentPlan(),
           this.formatPayers,
-          this.formatSplitWith
+          this.formatSplitWith,
+          this.googleSheetsId
         )
+
+        // Store the spreadsheet ID with this trip
+        this.googleSheetsId = result.spreadsheetId
+        this.saveTrip()
 
         alert(
           `Successfully synced to Google Sheets!\n\nSpreadsheet URL:\n${result.url}`
@@ -1329,9 +1338,11 @@ export default {
     },
 
     openSpreadsheet() {
-      const url = this.googleSheetsGetUrl()
-      if (url) {
+      if (this.googleSheetsId) {
+        const url = `https://docs.google.com/spreadsheets/d/${this.googleSheetsId}`
         window.open(url, '_blank')
+      } else {
+        alert('No spreadsheet linked to this trip yet. Please sync first.')
       }
     },
 

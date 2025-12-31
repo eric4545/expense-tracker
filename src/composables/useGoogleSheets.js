@@ -312,13 +312,14 @@ export function useGoogleSheets() {
     tripName,
     paymentPlan,
     formatPayers,
-    formatSplitWith
+    formatSplitWith,
+    existingSpreadsheetId = null
   ) => {
     try {
       isSyncing.value = true
 
-      // Create spreadsheet if needed
-      let spreadsheetId = currentSpreadsheetId.value
+      // Use provided spreadsheet ID, or create a new one if needed
+      let spreadsheetId = existingSpreadsheetId || currentSpreadsheetId.value
       if (!spreadsheetId) {
         const result = await createSpreadsheet(tripName)
         spreadsheetId = result.spreadsheetId

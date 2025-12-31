@@ -831,8 +831,8 @@ describe('ExpenseTracker', () => {
     it('should open spreadsheet in new tab', () => {
       global.open = vi.fn()
 
-      // Manually set the spreadsheet ID in the component
-      wrapper.vm.currentSpreadsheetId = 'test-spreadsheet-id-123'
+      // Set the trip-specific spreadsheet ID
+      wrapper.vm.googleSheetsId = 'test-spreadsheet-id-123'
 
       wrapper.vm.openSpreadsheet()
 
