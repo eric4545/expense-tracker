@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGoogleSheets } from '../src/composables/useGoogleSheets'
 
 describe('useGoogleSheets', () => {
@@ -25,7 +25,7 @@ describe('useGoogleSheets', () => {
               },
             }
           }),
-          revoke: vi.fn((token, callback) => callback && callback()),
+          revoke: vi.fn((token, callback) => callback?.()),
         },
       },
     }
@@ -51,7 +51,9 @@ describe('useGoogleSheets', () => {
 
       // Check that tokens are stored (what matters for functionality)
       expect(localStorage.getItem('google-sheets-token')).toBe('test-token')
-      expect(localStorage.getItem('google-sheets-client-id')).toBe('test-client-id')
+      expect(localStorage.getItem('google-sheets-client-id')).toBe(
+        'test-client-id'
+      )
       expect(localStorage.getItem('google-sheets-token-expiry')).toBeTruthy()
     })
 
@@ -59,7 +61,9 @@ describe('useGoogleSheets', () => {
     it.skip('should store client ID for reuse', async () => {
       await googleSheets.authenticate('test-client-id')
 
-      expect(localStorage.getItem('google-sheets-client-id')).toBe('test-client-id')
+      expect(localStorage.getItem('google-sheets-client-id')).toBe(
+        'test-client-id'
+      )
     })
 
     it('should detect expired token', async () => {
@@ -90,7 +94,9 @@ describe('useGoogleSheets', () => {
         },
       }))
 
-      await expect(googleSheets.authenticate('test-client-id')).rejects.toThrow()
+      await expect(
+        googleSheets.authenticate('test-client-id')
+      ).rejects.toThrow()
     })
   })
 
@@ -114,7 +120,9 @@ describe('useGoogleSheets', () => {
       const result = await googleSheets.createSpreadsheet('Test Trip')
 
       expect(result.spreadsheetId).toBe('test-spreadsheet-id')
-      expect(localStorage.getItem('google-sheets-spreadsheet-id')).toBe('test-spreadsheet-id')
+      expect(localStorage.getItem('google-sheets-spreadsheet-id')).toBe(
+        'test-spreadsheet-id'
+      )
     })
 
     it('should include authorization header', async () => {
@@ -129,7 +137,7 @@ describe('useGoogleSheets', () => {
         expect.any(String),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Authorization': 'Bearer test-token',
+            Authorization: 'Bearer test-token',
           }),
         })
       )
@@ -141,7 +149,9 @@ describe('useGoogleSheets', () => {
         json: async () => ({ error: { message: 'API Error' } }),
       })
 
-      await expect(googleSheets.createSpreadsheet('Test Trip')).rejects.toThrow('API Error')
+      await expect(googleSheets.createSpreadsheet('Test Trip')).rejects.toThrow(
+        'API Error'
+      )
     })
   })
 
@@ -160,17 +170,23 @@ describe('useGoogleSheets', () => {
       ]
 
       const formatPayers = (expense) => {
-        return expense.paidBy.map(p => `${p} (¥${expense.paidAmounts[p]})`).join(', ')
+        return expense.paidBy
+          .map((p) => `${p} (¥${expense.paidAmounts[p]})`)
+          .join(', ')
       }
 
       const formatSplitWith = (expense) => {
-        return expense.splitWith.map(m => `${m} (¥${expense.splitAmounts[m]})`).join(', ')
+        return expense.splitWith
+          .map((m) => `${m} (¥${expense.splitAmounts[m]})`)
+          .join(', ')
       }
 
       // Access the private method through a test-only export or test it indirectly
       // For now, we'll test the public syncExpenses method which uses these formatters
       expect(formatPayers(expenses[0])).toBe('Alice (¥90), Bob (¥60)')
-      expect(formatSplitWith(expenses[0])).toBe('Alice (¥50), Bob (¥50), Charlie (¥50)')
+      expect(formatSplitWith(expenses[0])).toBe(
+        'Alice (¥50), Bob (¥50), Charlie (¥50)'
+      )
     })
 
     it('should format payment plan for summary sheet', () => {
@@ -264,7 +280,14 @@ describe('useGoogleSheets', () => {
       global.fetch.mockRejectedValueOnce(new Error('Network error'))
 
       await expect(
-        googleSheets.syncExpenses([], [], 'Test Trip', [], () => '', () => '')
+        googleSheets.syncExpenses(
+          [],
+          [],
+          'Test Trip',
+          [],
+          () => '',
+          () => ''
+        )
       ).rejects.toThrow()
 
       expect(googleSheets.isSyncing.value).toBe(false)
@@ -297,7 +320,9 @@ describe('useGoogleSheets', () => {
       googleSheets.setClientId('new-client-id')
 
       // Check what matters - localStorage persistence
-      expect(localStorage.getItem('google-sheets-client-id')).toBe('new-client-id')
+      expect(localStorage.getItem('google-sheets-client-id')).toBe(
+        'new-client-id'
+      )
 
       // Create new instance to verify it persists
       const newInstance = useGoogleSheets()
@@ -313,7 +338,9 @@ describe('useGoogleSheets', () => {
       })
 
       // Don't authenticate
-      await expect(googleSheets.createSpreadsheet('Test Trip')).rejects.toThrow('Not authenticated')
+      await expect(googleSheets.createSpreadsheet('Test Trip')).rejects.toThrow(
+        'Not authenticated'
+      )
     })
 
     it('should handle 401 unauthorized errors', async () => {
@@ -325,7 +352,9 @@ describe('useGoogleSheets', () => {
         json: async () => ({ error: { message: 'Unauthorized' } }),
       })
 
-      await expect(googleSheets.createSpreadsheet('Test Trip')).rejects.toThrow()
+      await expect(
+        googleSheets.createSpreadsheet('Test Trip')
+      ).rejects.toThrow()
     })
   })
 })

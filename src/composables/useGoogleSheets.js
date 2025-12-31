@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 
 // Google Sheets API configuration
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
@@ -7,10 +7,16 @@ const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
 export function useGoogleSheets() {
   // State
   const accessToken = ref(localStorage.getItem('google-sheets-token') || null)
-  const tokenExpiry = ref(localStorage.getItem('google-sheets-token-expiry') || null)
-  const currentSpreadsheetId = ref(localStorage.getItem('google-sheets-spreadsheet-id') || null)
+  const tokenExpiry = ref(
+    localStorage.getItem('google-sheets-token-expiry') || null
+  )
+  const currentSpreadsheetId = ref(
+    localStorage.getItem('google-sheets-spreadsheet-id') || null
+  )
   const isSyncing = ref(false)
-  const lastSyncTime = ref(localStorage.getItem('google-sheets-last-sync') || null)
+  const lastSyncTime = ref(
+    localStorage.getItem('google-sheets-last-sync') || null
+  )
   const clientId = ref(localStorage.getItem('google-sheets-client-id') || null)
 
   // Computed
@@ -56,11 +62,14 @@ export function useGoogleSheets() {
 
             // Store token and expiry
             accessToken.value = response.access_token
-            const expiry = Date.now() + (response.expires_in * 1000)
+            const expiry = Date.now() + response.expires_in * 1000
             tokenExpiry.value = expiry.toString()
 
             localStorage.setItem('google-sheets-token', response.access_token)
-            localStorage.setItem('google-sheets-token-expiry', expiry.toString())
+            localStorage.setItem(
+              'google-sheets-token-expiry',
+              expiry.toString()
+            )
 
             if (customClientId) {
               clientId.value = customClientId
@@ -82,9 +91,7 @@ export function useGoogleSheets() {
   // Sign out
   const signOut = () => {
     if (accessToken.value && typeof google !== 'undefined') {
-      google.accounts.oauth2.revoke(accessToken.value, () => {
-        console.log('Token revoked')
-      })
+      google.accounts.oauth2.revoke(accessToken.value, () => {})
     }
 
     // Clear stored data
@@ -108,7 +115,7 @@ export function useGoogleSheets() {
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${accessToken.value}`,
+        Authorization: `Bearer ${accessToken.value}`,
         'Content-Type': 'application/json',
         ...options.headers,
       },
@@ -204,7 +211,13 @@ export function useGoogleSheets() {
   // Format expenses for sheet (reuses existing formatters)
   const formatExpensesForSheet = (expenses, formatPayers, formatSplitWith) => {
     const headers = [
-      ['Date', 'Description', 'Total Amount', 'Paid By (amounts)', 'Split With (amounts)'],
+      [
+        'Date',
+        'Description',
+        'Total Amount',
+        'Paid By (amounts)',
+        'Split With (amounts)',
+      ],
     ]
 
     const rows = expenses.map((expense) => [
@@ -258,17 +271,17 @@ export function useGoogleSheets() {
             balances[member].owes += splitAmount
           } else {
             // Calculate equal split for members without specified amount
-            const specifiedTotal = Object.values(expense.splitAmounts || {}).reduce(
-              (sum, amt) => sum + amt,
-              0
-            )
+            const specifiedTotal = Object.values(
+              expense.splitAmounts || {}
+            ).reduce((sum, amt) => sum + amt, 0)
             const remainingAmount = expense.amount - specifiedTotal
             const membersWithoutSpecifiedAmount = expense.splitWith.filter(
               (m) => !expense.splitAmounts?.[m]
             ).length
 
             if (membersWithoutSpecifiedAmount > 0) {
-              balances[member].owes += remainingAmount / membersWithoutSpecifiedAmount
+              balances[member].owes +=
+                remainingAmount / membersWithoutSpecifiedAmount
             } else {
               balances[member].owes += expense.amount / expense.splitWith.length
             }
@@ -293,7 +306,14 @@ export function useGoogleSheets() {
   }
 
   // Main sync function
-  const syncExpenses = async (expenses, members, tripName, paymentPlan, formatPayers, formatSplitWith) => {
+  const syncExpenses = async (
+    expenses,
+    members,
+    tripName,
+    paymentPlan,
+    formatPayers,
+    formatSplitWith
+  ) => {
     try {
       isSyncing.value = true
 
@@ -305,7 +325,11 @@ export function useGoogleSheets() {
       }
 
       // Format data for all three sheets
-      const expensesData = formatExpensesForSheet(expenses, formatPayers, formatSplitWith)
+      const expensesData = formatExpensesForSheet(
+        expenses,
+        formatPayers,
+        formatSplitWith
+      )
       const summaryData = formatSummaryForSheet(paymentPlan)
       const balanceData = formatBalanceForSheet(members, expenses)
 

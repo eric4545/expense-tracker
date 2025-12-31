@@ -436,8 +436,8 @@
 
 <script>
 import { computed, onMounted, ref } from 'vue'
-import ThemeToggle from './ThemeToggle.vue'
 import { useGoogleSheets } from '../composables/useGoogleSheets'
+import ThemeToggle from './ThemeToggle.vue'
 
 export default {
   name: 'ExpenseTracker',
@@ -879,7 +879,11 @@ export default {
               if (cell === null || cell === undefined) return ''
               const cellStr = String(cell)
               // Quote cells that contain commas, quotes, or newlines
-              if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+              if (
+                cellStr.includes(',') ||
+                cellStr.includes('"') ||
+                cellStr.includes('\n')
+              ) {
                 // Escape quotes by doubling them
                 return `"${cellStr.replace(/"/g, '""')}"`
               }
@@ -1264,13 +1268,7 @@ export default {
         // Prompt for Client ID if not configured
         if (!clientId) {
           clientId = prompt(
-            'Enter your Google OAuth Client ID:\n\n' +
-            'To get a Client ID:\n' +
-            '1. Go to console.cloud.google.com\n' +
-            '2. Create a project and enable Google Sheets API\n' +
-            '3. Create OAuth 2.0 Client ID (Web application)\n' +
-            '4. Add authorized redirect URI: ' + window.location.origin + '/expense-tracker/\n' +
-            '5. Copy the Client ID and paste below'
+            `Enter your Google OAuth Client ID:\n\nTo get a Client ID:\n1. Go to console.cloud.google.com\n2. Create a project and enable Google Sheets API\n3. Create OAuth 2.0 Client ID (Web application)\n4. Add authorized redirect URI: ${window.location.origin}/expense-tracker/\n5. Copy the Client ID and paste below`
           )
 
           if (!clientId) {
@@ -1285,7 +1283,9 @@ export default {
         alert('Successfully connected to Google Sheets!')
       } catch (error) {
         console.error('Failed to connect to Google Sheets:', error)
-        alert('Failed to connect to Google Sheets. Please check your Client ID and try again.')
+        alert(
+          'Failed to connect to Google Sheets. Please check your Client ID and try again.'
+        )
       }
     },
 
@@ -1305,12 +1305,17 @@ export default {
           this.formatSplitWith
         )
 
-        alert(`Successfully synced to Google Sheets!\n\nSpreadsheet URL:\n${result.url}`)
+        alert(
+          `Successfully synced to Google Sheets!\n\nSpreadsheet URL:\n${result.url}`
+        )
       } catch (error) {
         console.error('Failed to sync to Google Sheets:', error)
 
         // Check if token expired
-        if (error.message.includes('401') || error.message.includes('Not authenticated')) {
+        if (
+          error.message.includes('401') ||
+          error.message.includes('Not authenticated')
+        ) {
           const retry = confirm('Session expired. Reconnect to Google Sheets?')
           if (retry) {
             await this.connectGoogleSheets()
@@ -1333,7 +1338,7 @@ export default {
     disconnectGoogleSheets() {
       const confirm = window.confirm(
         'Are you sure you want to disconnect from Google Sheets?\n\n' +
-        'Your spreadsheet will remain in Google Drive, but you will need to reconnect to sync again.'
+          'Your spreadsheet will remain in Google Drive, but you will need to reconnect to sync again.'
       )
 
       if (confirm) {
@@ -1353,8 +1358,10 @@ export default {
       const diffDays = Math.floor(diffMs / 86400000)
 
       if (diffMins < 1) return 'Just now'
-      if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`
-      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+      if (diffMins < 60)
+        return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`
+      if (diffHours < 24)
+        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
       if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
 
       return date.toLocaleDateString()

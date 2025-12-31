@@ -567,13 +567,13 @@ describe('ExpenseTracker', () => {
         // Total: 1159 + 7375 + 321 + 4366.67 + 1557 = 14778.67
         const aliceShouldPay = wrapper.vm.getTotalShouldPay('Alice')
         expect(Math.round(aliceShouldPay)).toBe(
-          Math.round(1159 + 7375 + 321 + 4366.67 + 1557),
+          Math.round(1159 + 7375 + 321 + 4366.67 + 1557)
         )
 
         // Alice's balance should be: 115432 - 14778.67 = 100653.33
         const aliceBalance = wrapper.vm.getBalance('Alice')
         expect(Math.round(aliceBalance)).toBe(
-          Math.round(115432 - (1159 + 7375 + 321 + 4366.67 + 1557)),
+          Math.round(115432 - (1159 + 7375 + 321 + 4366.67 + 1557))
         )
 
         // Leo should pay:
@@ -590,7 +590,7 @@ describe('ExpenseTracker', () => {
         const totalExpenses = 12754 + 98500 + 4178 + 58900 + 10900
         const totalShouldPay = wrapper.vm.members.reduce(
           (sum, member) => sum + wrapper.vm.getTotalShouldPay(member),
-          0,
+          0
         )
         expect(Math.round(totalShouldPay)).toBe(totalExpenses)
       })
@@ -683,9 +683,15 @@ describe('ExpenseTracker', () => {
         click: vi.fn(),
         style: {},
       }
-      const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockLink)
-      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => {})
-      const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => {})
+      const createElementSpy = vi
+        .spyOn(document, 'createElement')
+        .mockReturnValue(mockLink)
+      const appendChildSpy = vi
+        .spyOn(document.body, 'appendChild')
+        .mockImplementation(() => {})
+      const removeChildSpy = vi
+        .spyOn(document.body, 'removeChild')
+        .mockImplementation(() => {})
 
       // Call exportCsv
       wrapper.vm.exportCsv()
@@ -695,7 +701,9 @@ describe('ExpenseTracker', () => {
       const blobContent = global.Blob.mock.calls[0][0][0]
 
       // Check headers
-      expect(blobContent).toContain('Date,Description,Total Amount,Paid By (with amounts),Split With (with amounts)')
+      expect(blobContent).toContain(
+        'Date,Description,Total Amount,Paid By (with amounts),Split With (with amounts)'
+      )
 
       // Check first expense with amounts
       expect(blobContent).toContain('2024-01-15')
@@ -776,7 +784,10 @@ describe('ExpenseTracker', () => {
       const futureTime = (Date.now() + 3600000).toString()
       localStorage.setItem('google-sheets-token', 'test-token')
       localStorage.setItem('google-sheets-token-expiry', futureTime)
-      localStorage.setItem('google-sheets-spreadsheet-id', 'test-spreadsheet-id')
+      localStorage.setItem(
+        'google-sheets-spreadsheet-id',
+        'test-spreadsheet-id'
+      )
 
       // Create new wrapper to pick up localStorage
       const authWrapper = mount(ExpenseTracker, {
@@ -841,7 +852,9 @@ describe('ExpenseTracker', () => {
       wrapper.vm.disconnectGoogleSheets()
 
       expect(global.confirm).toHaveBeenCalled()
-      expect(global.alert).toHaveBeenCalledWith('Disconnected from Google Sheets')
+      expect(global.alert).toHaveBeenCalledWith(
+        'Disconnected from Google Sheets'
+      )
     })
 
     it('should not disconnect if user cancels', () => {
@@ -852,7 +865,9 @@ describe('ExpenseTracker', () => {
       const tokenAfter = localStorage.getItem('google-sheets-token')
 
       expect(tokenBefore).toBe(tokenAfter)
-      expect(global.alert).not.toHaveBeenCalledWith('Disconnected from Google Sheets')
+      expect(global.alert).not.toHaveBeenCalledWith(
+        'Disconnected from Google Sheets'
+      )
     })
 
     it('should format last sync time correctly', () => {
