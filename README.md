@@ -14,8 +14,9 @@ A simple and intuitive expense tracking application built with Vue.js that helps
 - 🔄 Local storage for data persistence
 - 📱 Responsive design for mobile and desktop
 - 🌐 Works offline (PWA support)
-- 📊 CSV import and export for bulk expenses
+- 📊 CSV import and export for bulk expenses with complete amount details
 - 🌙 Dark mode support with system preference detection
+- 📈 Google Sheets integration for live sync and collaboration
 
 ## 🚀 Quick Start
 
@@ -202,3 +203,53 @@ Features:
 - High contrast for better accessibility
 - Consistent styling across all components
 - Respects system dark mode preference by default
+
+### Google Sheets Integration
+
+Sync your expenses directly to Google Sheets for easy sharing and collaboration:
+
+#### Setup Instructions
+
+1. **Get Google OAuth Client ID**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create a new project or select an existing one
+   - Enable the **Google Sheets API**
+   - Navigate to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+   - Choose **Web application** as the application type
+   - Add authorized redirect URI: `https://eric4545.github.io/expense-tracker/`
+   - Copy the Client ID
+
+2. **Connect to Google Sheets**:
+   - Click the **"Connect Google Sheets"** button in the app
+   - Paste your Client ID when prompted (you only need to do this once)
+   - Grant permissions to access Google Sheets
+   - You're connected!
+
+3. **Sync Your Expenses**:
+   - Click **"Sync to Google Sheets"** to create/update your spreadsheet
+   - The app creates three sheets:
+     - **Expenses**: Complete expense details with per-person amounts
+     - **Summary**: Payment plan showing who owes whom
+     - **Balance**: Per-person totals and balances
+   - Click **"Open Spreadsheet"** to view in Google Sheets
+
+#### Features
+
+- **Client-side only**: No server required, works with GitHub Pages
+- **Secure**: OAuth 2.0 authentication, your data stays private
+- **Complete data**: Exports all expense details including individual amounts
+- **Live sync**: Update your spreadsheet anytime with one click
+- **Persistent**: Connection and spreadsheet ID saved for convenience
+- **Smart formatting**: Uses the same format as CSV export for consistency
+
+#### CSV Export Format
+
+The improved CSV export now includes complete expense data:
+
+```csv
+Date,Description,Total Amount,Paid By (with amounts),Split With (with amounts)
+2024-01-15,Dinner,150,"Alice (¥90), Bob (¥60)","Alice (¥50), Bob (¥50), Charlie (¥50)"
+2024-01-16,Taxi,30,"Charlie (¥30)","Alice (¥10), Bob (¥10), Charlie (¥10)"
+```
+
+This format preserves all payment and split information, making it perfect for importing into spreadsheets or other financial tools.
