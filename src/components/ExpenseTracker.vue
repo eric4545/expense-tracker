@@ -22,7 +22,18 @@
             <button @click="saveTrip" class="btn btn-primary">Save Trip</button>
             <button v-if="currentTripId" @click="deleteTrip" class="btn btn-danger">Delete Trip</button>
           </div>
-          <textarea v-model="tripDescription" class="form-control" placeholder="Trip Description" rows="2"></textarea>
+          <textarea v-model="tripDescription" class="form-control mb-2" placeholder="Trip Description" rows="2"></textarea>
+          <div class="input-group">
+            <span class="input-group-text">Base Currency</span>
+            <select v-model="baseCurrency" class="form-select"
+                    @change="onBaseCurrencyChange"
+                    :disabled="currentTripId !== ''">
+              <option v-for="curr in currencies" :key="curr.code" :value="curr.code">
+                {{ curr.code }} - {{ curr.name }} ({{ curr.symbol }})
+              </option>
+            </select>
+          </div>
+          <small v-if="currentTripId" class="text-muted">Base currency cannot be changed after trip creation</small>
         </div>
       </div>
     </div>
@@ -58,6 +69,92 @@
           <div class="col-md-3">
             <input type="date" v-model="newExpense.date" class="form-control">
           </div>
+
+          <!-- Currency Section -->
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" v-model="newExpense.useCustomCurrency"
+                     @change="onCustomCurrencyToggle">
+              <label class="form-check-label">
+                This expense is in a different currency
+              </label>
+            </div>
+          </div>
+
+          <div v-if="newExpense.useCustomCurrency" class="col-12">
+            <div class="card bg-light">
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Expense Currency</label>
+                    <select v-model="newExpense.currency" class="form-select" @change="onExpenseCurrencyChange">
+                      <option v-for="curr in currencies" :key="curr.code" :value="curr.code">
+                        {{ curr.code }} - {{ curr.name }} ({{ curr.symbol }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="col-12">
+                    <label class="form-label">Exchange Rate Input Method</label>
+                    <div class="btn-group w-100" role="group">
+                      <input type="radio" class="btn-check" id="manual-rate" value="manual"
+                             v-model="newExpense.exchangeRateMode" @change="onExchangeRateModeChange">
+                      <label class="btn btn-outline-primary" for="manual-rate">Manual Rate</label>
+
+                      <input type="radio" class="btn-check" id="calculate-rate" value="calculate"
+                             v-model="newExpense.exchangeRateMode" @change="onExchangeRateModeChange">
+                      <label class="btn btn-outline-primary" for="calculate-rate">Calculate from Amounts</label>
+                    </div>
+                  </div>
+
+                  <!-- Manual Rate Mode -->
+                  <div v-if="newExpense.exchangeRateMode === 'manual'" class="col-12">
+                    <label class="form-label">Exchange Rate</label>
+                    <div class="input-group">
+                      <span class="input-group-text">1 {{ newExpense.currency }} =</span>
+                      <input type="number" v-model.number="newExpense.manualRate" class="form-control"
+                             step="0.000001" @input="onManualRateChange">
+                      <span class="input-group-text">{{ baseCurrency }}</span>
+                    </div>
+                    <small class="text-muted">
+                      Converted: {{ newExpense.amount }} {{ newExpense.currency }} =
+                      {{ formatCurrency(newExpense.amount * newExpense.manualRate, baseCurrency) }}
+                    </small>
+                  </div>
+
+                  <!-- Calculate Rate Mode -->
+                  <div v-if="newExpense.exchangeRateMode === 'calculate'" class="col-12">
+                    <div class="row g-2">
+                      <div class="col-md-5">
+                        <label class="form-label">Amount in {{ newExpense.currency }}</label>
+                        <div class="input-group">
+                          <input type="number" v-model.number="newExpense.foreignAmount" class="form-control"
+                                 @input="onForeignAmountChange">
+                          <span class="input-group-text">{{ newExpense.currency }}</span>
+                        </div>
+                      </div>
+                      <div class="col-md-2 text-center pt-4">
+                        <strong>=</strong>
+                      </div>
+                      <div class="col-md-5">
+                        <label class="form-label">Amount in {{ baseCurrency }}</label>
+                        <div class="input-group">
+                          <input type="number" v-model.number="newExpense.calculatedBaseAmount" class="form-control"
+                                 @input="onCalculatedBaseAmountChange">
+                          <span class="input-group-text">{{ baseCurrency }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <small v-if="newExpense.foreignAmount && newExpense.calculatedBaseAmount" class="text-muted">
+                      Exchange rate: 1 {{ newExpense.currency }} =
+                      {{ (newExpense.calculatedBaseAmount / newExpense.foreignAmount).toFixed(6) }} {{ baseCurrency }}
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="col-12">
             <button @click="selectAllPayers" class="btn btn-outline-secondary mb-2">Select All Payers</button>
             <div class="row">
@@ -189,7 +286,13 @@
               </template>
             </td>
             <td>
-              <span v-if="editingIndex !== index">¥{{ expense.amount }}</span>
+              <span v-if="editingIndex !== index">
+                {{ formatCurrency(expense.amount, expense.currency || baseCurrency) }}
+                <span v-if="expense.currency && expense.currency !== baseCurrency" class="text-muted small">
+                  <br>({{ formatCurrency(getBaseAmount(expense), baseCurrency) }})
+                  <br><small>Rate: 1={{ expense.exchangeRate?.toFixed(4) || 1 }}</small>
+                </span>
+              </span>
               <input v-else v-model.number="editingExpense.amount" type="number"
                      class="form-control form-control-sm"
                      @change="updateEditPaidAmounts">
@@ -226,10 +329,10 @@
             <tbody>
               <tr v-for="member in members" :key="member">
                 <td>{{ member }}</td>
-                <td>¥{{ Math.round(getTotalPaid(member)) }}</td>
-                <td>¥{{ Math.round(getTotalShouldPay(member)) }}</td>
+                <td>{{ formatCurrency(getTotalPaid(member), baseCurrency) }}</td>
+                <td>{{ formatCurrency(getTotalShouldPay(member), baseCurrency) }}</td>
                 <td :class="getBalance(member) >= 0 ? 'text-success' : 'text-danger'">
-                  ¥{{ Math.round(getBalance(member)) }}
+                  {{ formatCurrency(getBalance(member), baseCurrency, true) }}
                 </td>
               </tr>
             </tbody>
@@ -272,19 +375,19 @@
                 <td v-for="member in members" :key="member" class="text-center">
                   <template v-if="expense.splitWith.includes(member)">
                     <span :class="expense.paidBy === member ? 'text-success fw-bold' : ''">
-                      ¥{{ Math.round(getCrossTableAmount(expense, member)) }}
+                      {{ formatCurrency(getCrossTableAmount(expense, member), baseCurrency) }}
                     </span>
                   </template>
                   <template v-else>-</template>
                 </td>
-                <td class="text-center">¥{{ Math.round(expense.amount) }}</td>
+                <td class="text-center">{{ formatCurrency(getBaseAmount(expense), baseCurrency) }}</td>
               </tr>
               <tr class="table-secondary">
                 <td><strong>Total</strong></td>
                 <td v-for="member in members" :key="member" class="text-center">
-                  <strong>¥{{ Math.round(getTotalShouldPay(member)) }}</strong>
+                  <strong>{{ formatCurrency(getTotalShouldPay(member), baseCurrency) }}</strong>
                 </td>
-                <td class="text-center"><strong>¥{{ Math.round(getTotalExpenses()) }}</strong></td>
+                <td class="text-center"><strong>{{ formatCurrency(getTotalExpenses(), baseCurrency) }}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -315,18 +418,18 @@
                 <td><strong>{{ payer }}</strong></td>
                 <td v-for="receiver in members" :key="receiver" class="text-center">
                   <template v-if="payer !== receiver">
-                    ¥{{ Math.round(getCrossPaidAmount(payer, receiver)) }}
+                    {{ formatCurrency(getCrossPaidAmount(payer, receiver), baseCurrency) }}
                   </template>
                   <template v-else>-</template>
                 </td>
-                <td class="text-center"><strong>¥{{ Math.round(getTotalPaid(payer)) }}</strong></td>
+                <td class="text-center"><strong>{{ formatCurrency(getTotalPaid(payer), baseCurrency) }}</strong></td>
               </tr>
               <tr class="table-secondary">
                 <td><strong>Total Should Pay</strong></td>
                 <td v-for="member in members" :key="member" class="text-center">
-                  <strong>¥{{ Math.round(getTotalShouldPay(member)) }}</strong>
+                  <strong>{{ formatCurrency(getTotalShouldPay(member), baseCurrency) }}</strong>
                 </td>
-                <td class="text-center"><strong>¥{{ Math.round(getTotalExpenses()) }}</strong></td>
+                <td class="text-center"><strong>{{ formatCurrency(getTotalExpenses(), baseCurrency) }}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -378,7 +481,7 @@
               <tr v-for="(payment, index) in getPaymentPlan()" :key="index">
                 <td>{{ payment.from }}</td>
                 <td>{{ payment.to }}</td>
-                <td>¥{{ Math.round(payment.amount) }}</td>
+                <td>{{ formatCurrency(payment.amount, baseCurrency) }}</td>
               </tr>
             </tbody>
           </table>
@@ -399,6 +502,16 @@
 <script>
 import { computed, onMounted, ref } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
+import {
+  CURRENCIES,
+  DEFAULT_CURRENCY,
+  DEFAULT_SYMBOL,
+  getCurrencySymbol,
+  formatCurrency,
+  calculateBaseAmount,
+  calculateExchangeRate,
+  isValidExchangeRate,
+} from '../utils/currencies.js'
 
 export default {
   name: 'ExpenseTracker',
@@ -415,6 +528,9 @@ export default {
       tripDescription: '',
       currentTripId: '',
       tripList: [],
+      baseCurrency: DEFAULT_CURRENCY,
+      currencySymbol: DEFAULT_SYMBOL,
+      currencies: CURRENCIES,
       members: [],
       newMember: '',
       expenses: [],
@@ -426,6 +542,14 @@ export default {
         splitWith: [],
         splitAmounts: {},
         date: new Date().toISOString().split('T')[0],
+        currency: DEFAULT_CURRENCY,
+        exchangeRate: 1,
+        baseAmount: null,
+        useCustomCurrency: false,
+        exchangeRateMode: 'manual',
+        manualRate: 1,
+        foreignAmount: null,
+        calculatedBaseAmount: null,
       },
       editingIndex: -1,
       editingExpense: null,
@@ -496,6 +620,8 @@ export default {
         members: this.members,
         expenses: this.expenses,
         createdAt: Date.now(),
+        baseCurrency: this.baseCurrency,
+        currencySymbol: this.currencySymbol,
       }
 
       const existingIndex = trips.findIndex((t) => t.id === tripData.id)
@@ -541,6 +667,18 @@ export default {
         this.tripDescription = trip.description || ''
         this.members = trip.members
         this.expenses = trip.expenses
+
+        // Migration: Add currency fields to existing trips (backward compatibility)
+        this.baseCurrency = trip.baseCurrency || DEFAULT_CURRENCY
+        this.currencySymbol = trip.currencySymbol || DEFAULT_SYMBOL
+
+        // Migration: Add currency fields to existing expenses
+        this.expenses = this.expenses.map((expense) => ({
+          ...expense,
+          currency: expense.currency || this.baseCurrency,
+          exchangeRate: expense.exchangeRate || 1,
+          baseAmount: expense.baseAmount || expense.amount,
+        }))
       }
     },
 
@@ -555,6 +693,8 @@ export default {
 
       this.tripName = `New Trip (${date})`
       this.tripDescription = ''
+      this.baseCurrency = DEFAULT_CURRENCY
+      this.currencySymbol = DEFAULT_SYMBOL
       this.members = []
       this.expenses = []
       this.newMember = ''
@@ -566,6 +706,14 @@ export default {
         splitWith: [],
         splitAmounts: {},
         date: new Date().toISOString().split('T')[0],
+        currency: this.baseCurrency,
+        exchangeRate: 1,
+        baseAmount: null,
+        useCustomCurrency: false,
+        exchangeRateMode: 'manual',
+        manualRate: 1,
+        foreignAmount: null,
+        calculatedBaseAmount: null,
       }
     },
 
@@ -580,6 +728,103 @@ export default {
     removeMember(member) {
       this.members = this.members.filter((m) => m !== member)
       this.saveTrip()
+    },
+
+    onBaseCurrencyChange() {
+      this.currencySymbol = getCurrencySymbol(this.baseCurrency)
+      this.newExpense.currency = this.baseCurrency
+    },
+
+    onCustomCurrencyToggle() {
+      if (!this.newExpense.useCustomCurrency) {
+        // Reset to base currency
+        this.newExpense.currency = this.baseCurrency
+        this.newExpense.exchangeRate = 1
+        this.newExpense.baseAmount = this.newExpense.amount
+      } else {
+        // Initialize with default values
+        if (this.newExpense.currency === this.baseCurrency) {
+          // Pick a different currency as default
+          const differentCurrency = CURRENCIES.find((c) => c.code !== this.baseCurrency)
+          this.newExpense.currency = differentCurrency ? differentCurrency.code : 'USD'
+        }
+        this.newExpense.manualRate = 1
+        this.newExpense.foreignAmount = this.newExpense.amount
+        this.newExpense.calculatedBaseAmount = this.newExpense.amount
+      }
+    },
+
+    onExpenseCurrencyChange() {
+      // Reset exchange rate when currency changes
+      this.newExpense.manualRate = 1
+      this.newExpense.foreignAmount = this.newExpense.amount
+      this.newExpense.calculatedBaseAmount = this.newExpense.amount
+    },
+
+    onExchangeRateModeChange() {
+      // Sync values when switching modes
+      if (this.newExpense.exchangeRateMode === 'manual') {
+        if (this.newExpense.foreignAmount && this.newExpense.calculatedBaseAmount) {
+          this.newExpense.manualRate = calculateExchangeRate(
+            this.newExpense.foreignAmount,
+            this.newExpense.calculatedBaseAmount
+          )
+        }
+      } else {
+        this.newExpense.foreignAmount = this.newExpense.amount
+        if (this.newExpense.manualRate) {
+          this.newExpense.calculatedBaseAmount = calculateBaseAmount(
+            this.newExpense.amount,
+            this.newExpense.manualRate
+          )
+        }
+      }
+    },
+
+    onManualRateChange() {
+      if (this.newExpense.manualRate && isValidExchangeRate(this.newExpense.manualRate)) {
+        this.newExpense.exchangeRate = this.newExpense.manualRate
+        this.newExpense.baseAmount = calculateBaseAmount(
+          this.newExpense.amount,
+          this.newExpense.manualRate
+        )
+      }
+    },
+
+    onForeignAmountChange() {
+      if (
+        this.newExpense.foreignAmount &&
+        this.newExpense.calculatedBaseAmount &&
+        this.newExpense.foreignAmount > 0
+      ) {
+        const rate = calculateExchangeRate(
+          this.newExpense.foreignAmount,
+          this.newExpense.calculatedBaseAmount
+        )
+        if (isValidExchangeRate(rate)) {
+          this.newExpense.exchangeRate = rate
+          this.newExpense.amount = this.newExpense.foreignAmount
+          this.newExpense.baseAmount = this.newExpense.calculatedBaseAmount
+        }
+      }
+    },
+
+    onCalculatedBaseAmountChange() {
+      if (
+        this.newExpense.foreignAmount &&
+        this.newExpense.calculatedBaseAmount &&
+        this.newExpense.foreignAmount > 0
+      ) {
+        const rate = calculateExchangeRate(
+          this.newExpense.foreignAmount,
+          this.newExpense.calculatedBaseAmount
+        )
+        if (isValidExchangeRate(rate)) {
+          this.newExpense.exchangeRate = rate
+          this.newExpense.amount = this.newExpense.foreignAmount
+          this.newExpense.baseAmount = this.newExpense.calculatedBaseAmount
+        }
+      }
     },
 
     addExpense() {
@@ -604,7 +849,27 @@ export default {
           this.updateSplitAmounts()
         }
 
-        this.expenses.push({ ...this.newExpense })
+        // Ensure currency fields are set correctly
+        const expenseToAdd = { ...this.newExpense }
+        if (!expenseToAdd.useCustomCurrency) {
+          expenseToAdd.currency = this.baseCurrency
+          expenseToAdd.exchangeRate = 1
+          expenseToAdd.baseAmount = expenseToAdd.amount
+        } else if (!expenseToAdd.baseAmount) {
+          expenseToAdd.baseAmount = calculateBaseAmount(
+            expenseToAdd.amount,
+            expenseToAdd.exchangeRate
+          )
+        }
+
+        // Remove UI-only fields before saving
+        delete expenseToAdd.useCustomCurrency
+        delete expenseToAdd.exchangeRateMode
+        delete expenseToAdd.manualRate
+        delete expenseToAdd.foreignAmount
+        delete expenseToAdd.calculatedBaseAmount
+
+        this.expenses.push(expenseToAdd)
         this.newExpense = {
           description: '',
           amount: null,
@@ -613,6 +878,14 @@ export default {
           splitWith: [],
           splitAmounts: {},
           date: new Date().toISOString().split('T')[0],
+          currency: this.baseCurrency,
+          exchangeRate: 1,
+          baseAmount: null,
+          useCustomCurrency: false,
+          exchangeRateMode: 'manual',
+          manualRate: 1,
+          foreignAmount: null,
+          calculatedBaseAmount: null,
         }
         this.saveTrip()
       }
@@ -683,15 +956,32 @@ export default {
       this.editingExpense = null
     },
 
+    getBaseAmount(expense) {
+      // Get amount in base currency for calculations
+      if (expense.baseAmount !== null && expense.baseAmount !== undefined) {
+        return expense.baseAmount
+      }
+      if (expense.exchangeRate && expense.exchangeRate !== 1) {
+        return expense.amount * expense.exchangeRate
+      }
+      return expense.amount
+    },
+
     getTotalPaid(member) {
       return this.expenses.reduce((sum, expense) => {
+        const baseAmount = this.getBaseAmount(expense)
         if (Array.isArray(expense.paidBy)) {
           // If multiple payers with specific amounts
-          return sum + (expense.paidAmounts[member] || 0)
+          // Convert proportionally to base currency
+          if (expense.paidAmounts[member]) {
+            const paidRatio = expense.paidAmounts[member] / expense.amount
+            return sum + baseAmount * paidRatio
+          }
+          return sum
         }
         if (expense.paidBy === member) {
           // Single payer
-          return sum + expense.amount
+          return sum + baseAmount
         }
         return sum
       }, 0)
@@ -700,15 +990,19 @@ export default {
     getTotalShouldPay(member) {
       let total = 0
       for (const expense of this.expenses) {
+        const baseAmount = this.getBaseAmount(expense)
         if (expense.splitWith.includes(member)) {
           if (expense.splitAmounts?.[member]) {
-            total += expense.splitAmounts[member]
+            // Convert split amount proportionally to base currency
+            const splitRatio = expense.splitAmounts[member] / expense.amount
+            total += baseAmount * splitRatio
           } else {
             // Calculate remaining amount after accounting for specified split amounts
             const specifiedTotal = Object.values(
               expense.splitAmounts || {}
             ).reduce((sum, amount) => sum + amount, 0)
-            const remainingAmount = expense.amount - specifiedTotal
+            const specifiedRatio = specifiedTotal / expense.amount
+            const remainingAmount = baseAmount * (1 - specifiedRatio)
             const membersWithoutSpecifiedAmount = expense.splitWith.filter(
               (m) => !expense.splitAmounts?.[m]
             ).length
@@ -717,7 +1011,7 @@ export default {
               total += remainingAmount / membersWithoutSpecifiedAmount
             } else {
               // Fallback: equal split among all
-              total += expense.amount / expense.splitWith.length
+              total += baseAmount / expense.splitWith.length
             }
           }
         }
@@ -1002,20 +1296,24 @@ export default {
       const payment = this.getPaymentPlan().find(
         (p) => p.from === debtor && p.to === creditor
       )
-      return payment ? `¥${Math.round(payment.amount)}` : '-'
+      return payment ? formatCurrency(payment.amount, this.baseCurrency) : '-'
     },
 
     getCrossTableAmount(expense, member) {
       if (!expense.splitWith.includes(member)) return 0
+      const baseAmount = this.getBaseAmount(expense)
       if (expense.splitAmounts?.[member]) {
-        return expense.splitAmounts[member]
+        // Convert split amount proportionally to base currency
+        const splitRatio = expense.splitAmounts[member] / expense.amount
+        return baseAmount * splitRatio
       }
       // Calculate remaining amount after accounting for specified split amounts
       const specifiedTotal = Object.values(expense.splitAmounts || {}).reduce(
         (sum, amount) => sum + amount,
         0
       )
-      const remainingAmount = expense.amount - specifiedTotal
+      const specifiedRatio = specifiedTotal / expense.amount
+      const remainingAmount = baseAmount * (1 - specifiedRatio)
       const membersWithoutSpecifiedAmount = expense.splitWith.filter(
         (m) => !expense.splitAmounts?.[m]
       ).length
@@ -1023,7 +1321,7 @@ export default {
       if (membersWithoutSpecifiedAmount > 0) {
         return remainingAmount / membersWithoutSpecifiedAmount
       }
-      return expense.amount / expense.splitWith.length
+      return baseAmount / expense.splitWith.length
     },
 
     updateSplitAmounts() {
@@ -1099,8 +1397,9 @@ export default {
 
     formatPayers(expense) {
       if (Array.isArray(expense.paidBy)) {
+        const expenseCurrency = expense.currency || this.baseCurrency
         return expense.paidBy
-          .map((p) => `${p} (¥${expense.paidAmounts[p]})`)
+          .map((p) => `${p} (${formatCurrency(expense.paidAmounts[p], expenseCurrency)})`)
           .join(', ')
       }
       return expense.paidBy
@@ -1143,28 +1442,36 @@ export default {
     },
 
     formatSplitWith(expense) {
+      const baseAmount = this.getBaseAmount(expense)
       return expense.splitWith
         .map((m) => {
           let amount
           if (expense.splitAmounts?.[m]) {
-            amount = expense.splitAmounts[m]
+            // Convert split amount proportionally to base currency
+            const splitRatio = expense.splitAmounts[m] / expense.amount
+            amount = baseAmount * splitRatio
           } else {
             // Calculate remaining amount after accounting for specified split amounts
             const specifiedTotal = Object.values(
               expense.splitAmounts || {}
             ).reduce((sum, amt) => sum + amt, 0)
-            const remainingAmount = expense.amount - specifiedTotal
+            const specifiedRatio = specifiedTotal / expense.amount
+            const remainingAmount = baseAmount * (1 - specifiedRatio)
             const membersWithoutSpecifiedAmount = expense.splitWith.filter(
               (member) => !expense.splitAmounts?.[member]
             ).length
             amount =
               membersWithoutSpecifiedAmount > 0
                 ? remainingAmount / membersWithoutSpecifiedAmount
-                : expense.amount / expense.splitWith.length
+                : baseAmount / expense.splitWith.length
           }
-          return `${m} (¥${Math.round(amount)})`
+          return `${m} (${formatCurrency(amount, this.baseCurrency)})`
         })
         .join(', ')
+    },
+
+    formatCurrency(amount, currencyCode, showDecimals = false) {
+      return formatCurrency(amount, currencyCode, showDecimals)
     },
 
     updateAmounts() {
