@@ -34,7 +34,7 @@ export const DEFAULT_SYMBOL = '¥'
  * @returns {object|null} Currency object or null if not found
  */
 export function getCurrency(code) {
-  return CURRENCIES.find(c => c.code === code) || null
+  return CURRENCIES.find((c) => c.code === code) || null
 }
 
 /**
@@ -54,7 +54,11 @@ export function getCurrencySymbol(code) {
  * @param {boolean} showDecimals - Whether to show decimal places
  * @returns {string} Formatted currency string
  */
-export function formatCurrency(amount, currencyCode = DEFAULT_CURRENCY, showDecimals = false) {
+export function formatCurrency(
+  amount,
+  currencyCode = DEFAULT_CURRENCY,
+  showDecimals = false
+) {
   const symbol = getCurrencySymbol(currencyCode)
   const formattedAmount = showDecimals
     ? amount.toFixed(2)

@@ -309,8 +309,14 @@ describe('ExpenseTracker', () => {
         const expense = wrapper.vm.expenses[0]
 
         expect(wrapper.vm.getCrossTableAmount(expense, 'Alice')).toBe(100)
-        expect(wrapper.vm.getCrossTableAmount(expense, 'Bob')).toBeCloseTo(100, 2)
-        expect(wrapper.vm.getCrossTableAmount(expense, 'Charlie')).toBeCloseTo(100, 2)
+        expect(wrapper.vm.getCrossTableAmount(expense, 'Bob')).toBeCloseTo(
+          100,
+          2
+        )
+        expect(wrapper.vm.getCrossTableAmount(expense, 'Charlie')).toBeCloseTo(
+          100,
+          2
+        )
       })
 
       it('should handle complex scenario with multiple members and partial splits', () => {
@@ -567,13 +573,13 @@ describe('ExpenseTracker', () => {
         // Total: 1159 + 7375 + 321 + 4366.67 + 1557 = 14778.67
         const aliceShouldPay = wrapper.vm.getTotalShouldPay('Alice')
         expect(Math.round(aliceShouldPay)).toBe(
-          Math.round(1159 + 7375 + 321 + 4366.67 + 1557),
+          Math.round(1159 + 7375 + 321 + 4366.67 + 1557)
         )
 
         // Alice's balance should be: 115432 - 14778.67 = 100653.33
         const aliceBalance = wrapper.vm.getBalance('Alice')
         expect(Math.round(aliceBalance)).toBe(
-          Math.round(115432 - (1159 + 7375 + 321 + 4366.67 + 1557)),
+          Math.round(115432 - (1159 + 7375 + 321 + 4366.67 + 1557))
         )
 
         // Leo should pay:
@@ -590,7 +596,7 @@ describe('ExpenseTracker', () => {
         const totalExpenses = 12754 + 98500 + 4178 + 58900 + 10900
         const totalShouldPay = wrapper.vm.members.reduce(
           (sum, member) => sum + wrapper.vm.getTotalShouldPay(member),
-          0,
+          0
         )
         expect(Math.round(totalShouldPay)).toBe(totalExpenses)
       })
@@ -678,7 +684,9 @@ describe('ExpenseTracker', () => {
 
         // Get the last setItem call (most recent save)
         const lastCallIndex = localStorage.setItem.mock.calls.length - 1
-        const savedData = JSON.parse(localStorage.setItem.mock.calls[lastCallIndex][1])
+        const savedData = JSON.parse(
+          localStorage.setItem.mock.calls[lastCallIndex][1]
+        )
         const savedTrip = savedData[savedData.length - 1]
 
         expect(savedTrip.baseCurrency).toBe('USD')
@@ -852,9 +860,18 @@ describe('ExpenseTracker', () => {
         const total = 10000 + 3000 + 15000
         const expectedPerPerson = total / 3
 
-        expect(wrapper.vm.getTotalShouldPay('Alice')).toBeCloseTo(expectedPerPerson, 2)
-        expect(wrapper.vm.getTotalShouldPay('Bob')).toBeCloseTo(expectedPerPerson, 2)
-        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBeCloseTo(expectedPerPerson, 2)
+        expect(wrapper.vm.getTotalShouldPay('Alice')).toBeCloseTo(
+          expectedPerPerson,
+          2
+        )
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBeCloseTo(
+          expectedPerPerson,
+          2
+        )
+        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBeCloseTo(
+          expectedPerPerson,
+          2
+        )
       })
 
       it('should calculate correct balances', () => {
@@ -876,7 +893,7 @@ describe('ExpenseTracker', () => {
         expect(payments.length).toBeGreaterThan(0)
 
         // Verify all payments are positive
-        payments.forEach(payment => {
+        payments.forEach((payment) => {
           expect(payment.amount).toBeGreaterThan(0)
         })
       })
@@ -1073,7 +1090,7 @@ describe('ExpenseTracker', () => {
         const payments = wrapper.vm.getPaymentPlan()
         expect(payments.length).toBeGreaterThan(0)
 
-        const charliePayments = payments.filter(p => p.from === 'Charlie')
+        const charliePayments = payments.filter((p) => p.from === 'Charlie')
         expect(charliePayments.length).toBeGreaterThan(0)
       })
     })

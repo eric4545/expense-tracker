@@ -501,17 +501,17 @@
 
 <script>
 import { computed, onMounted, ref } from 'vue'
-import ThemeToggle from './ThemeToggle.vue'
 import {
   CURRENCIES,
   DEFAULT_CURRENCY,
   DEFAULT_SYMBOL,
-  getCurrencySymbol,
-  formatCurrency,
   calculateBaseAmount,
   calculateExchangeRate,
+  formatCurrency,
+  getCurrencySymbol,
   isValidExchangeRate,
 } from '../utils/currencies.js'
+import ThemeToggle from './ThemeToggle.vue'
 
 export default {
   name: 'ExpenseTracker',
@@ -745,8 +745,12 @@ export default {
         // Initialize with default values
         if (this.newExpense.currency === this.baseCurrency) {
           // Pick a different currency as default
-          const differentCurrency = CURRENCIES.find((c) => c.code !== this.baseCurrency)
-          this.newExpense.currency = differentCurrency ? differentCurrency.code : 'USD'
+          const differentCurrency = CURRENCIES.find(
+            (c) => c.code !== this.baseCurrency
+          )
+          this.newExpense.currency = differentCurrency
+            ? differentCurrency.code
+            : 'USD'
         }
         this.newExpense.manualRate = 1
         this.newExpense.foreignAmount = this.newExpense.amount
@@ -764,7 +768,10 @@ export default {
     onExchangeRateModeChange() {
       // Sync values when switching modes
       if (this.newExpense.exchangeRateMode === 'manual') {
-        if (this.newExpense.foreignAmount && this.newExpense.calculatedBaseAmount) {
+        if (
+          this.newExpense.foreignAmount &&
+          this.newExpense.calculatedBaseAmount
+        ) {
           this.newExpense.manualRate = calculateExchangeRate(
             this.newExpense.foreignAmount,
             this.newExpense.calculatedBaseAmount
@@ -782,7 +789,10 @@ export default {
     },
 
     onManualRateChange() {
-      if (this.newExpense.manualRate && isValidExchangeRate(this.newExpense.manualRate)) {
+      if (
+        this.newExpense.manualRate &&
+        isValidExchangeRate(this.newExpense.manualRate)
+      ) {
         this.newExpense.exchangeRate = this.newExpense.manualRate
         this.newExpense.baseAmount = calculateBaseAmount(
           this.newExpense.amount,
@@ -863,11 +873,11 @@ export default {
         }
 
         // Remove UI-only fields before saving
-        delete expenseToAdd.useCustomCurrency
-        delete expenseToAdd.exchangeRateMode
-        delete expenseToAdd.manualRate
-        delete expenseToAdd.foreignAmount
-        delete expenseToAdd.calculatedBaseAmount
+        expenseToAdd.useCustomCurrency = undefined
+        expenseToAdd.exchangeRateMode = undefined
+        expenseToAdd.manualRate = undefined
+        expenseToAdd.foreignAmount = undefined
+        expenseToAdd.calculatedBaseAmount = undefined
 
         this.expenses.push(expenseToAdd)
         this.newExpense = {
@@ -1399,7 +1409,10 @@ export default {
       if (Array.isArray(expense.paidBy)) {
         const expenseCurrency = expense.currency || this.baseCurrency
         return expense.paidBy
-          .map((p) => `${p} (${formatCurrency(expense.paidAmounts[p], expenseCurrency)})`)
+          .map(
+            (p) =>
+              `${p} (${formatCurrency(expense.paidAmounts[p], expenseCurrency)})`
+          )
           .join(', ')
       }
       return expense.paidBy
