@@ -75,13 +75,22 @@
     </div>
     <div id="app"></div>
     <script>
-        // Register Service Worker
+        // Register Service Worker (skip for PR previews as they're temporary testing environments)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
                 try {
-                    // Clear any existing service workers first
+                    // Check if this is a PR preview - if so, unregister all service workers and skip registration
+                    const isPrPreview = window.location.pathname.includes('/pr-preview/');
+
+                    // Clear any existing service workers
                     const registrations = await navigator.serviceWorker.getRegistrations();
                     await Promise.all(registrations.map(r => r.unregister()));
+
+                    // Skip service worker registration for PR previews
+                    if (isPrPreview) {
+                        console.log('Service worker disabled for PR preview environment');
+                        return;
+                    }
 
                     // Register new service worker with correct path
                     const registration = await navigator.serviceWorker.register(

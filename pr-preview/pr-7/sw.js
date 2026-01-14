@@ -103,7 +103,22 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Cache-first strategy for navigation and other requests
+  // For navigation requests (HTML pages), use network-first to avoid caching routing issues
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          return response
+        })
+        .catch((err) => {
+          // If offline, try to show offline page
+          return caches.match(`${BASE_URL}/offline.html`)
+        })
+    )
+    return
+  }
+
+  // For other requests, use cache-first strategy
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
@@ -121,10 +136,6 @@ self.addEventListener('fetch', (event) => {
           return networkResponse
         })
         .catch((err) => {
-          // If it's a navigation request and fails, show the offline page
-          if (isNavigationRequest) {
-            return caches.match(`${BASE_URL}/offline.html`)
-          }
           throw err
         })
     })
