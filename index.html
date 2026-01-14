@@ -7,10 +7,32 @@
     <meta name="description" content="Track and split expenses with your group">
     <meta name="theme-color" content="#4CAF50">
     <script>
-        // Set the base URL for assets
-        window.BASE_URL = location.hostname === 'eric4545.github.io' ? '/expense-tracker' : '';
-        // Add a meta base tag
-        document.write(`<base href="${window.BASE_URL}/" />`);
+        // Set the base URL for assets - detect PR preview paths
+        (function() {
+            const path = location.pathname;
+            const hostname = location.hostname;
+
+            // Detect if we're on GitHub Pages (any *.github.io domain)
+            const isGitHubPages = hostname.endsWith('.github.io');
+
+            if (isGitHubPages) {
+                // Try to detect PR preview path pattern
+                const prPreviewMatch = path.match(/^(\/[^/]+\/pr-preview\/pr-\d+)\//);
+                if (prPreviewMatch) {
+                    // PR preview path: /repo-name/pr-preview/pr-N/
+                    window.BASE_URL = prPreviewMatch[1];
+                } else {
+                    // Production path: extract repo name from pathname
+                    const repoMatch = path.match(/^\/([^/]+)/);
+                    window.BASE_URL = repoMatch ? '/' + repoMatch[1] : '';
+                }
+            } else {
+                // Local development or custom domain
+                window.BASE_URL = '';
+            }
+            // Add a meta base tag
+            document.write(`<base href="${window.BASE_URL}/" />`);
+        })();
 
         // Handle SPA redirect from 404.html
         (function() {
