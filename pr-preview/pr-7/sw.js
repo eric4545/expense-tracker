@@ -1,6 +1,19 @@
-const CACHE_NAME = 'expense-tracker-v6'
-const isGitHubPages = self.location.hostname === 'eric4545.github.io'
-const BASE_URL = isGitHubPages ? '/expense-tracker' : ''
+const CACHE_NAME = 'expense-tracker-v7'
+
+// Detect base URL dynamically (same logic as index.html)
+let BASE_URL = ''
+if (self.location.hostname.endsWith('.github.io')) {
+  const path = self.location.pathname
+  // Try to detect PR preview pattern
+  const prPreviewMatch = path.match(/^(\/[^/]+\/pr-preview\/pr-\d+)/)
+  if (prPreviewMatch) {
+    BASE_URL = prPreviewMatch[1]
+  } else {
+    // Extract repo name from pathname
+    const repoMatch = path.match(/^\/([^/]+)/)
+    BASE_URL = repoMatch ? '/' + repoMatch[1] : ''
+  }
+}
 
 // Only cache core assets during install
 // Dynamic assets will be cached as they're accessed
