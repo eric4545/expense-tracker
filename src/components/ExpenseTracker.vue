@@ -1518,7 +1518,11 @@ export default {
       // Copy to clipboard
       navigator.clipboard
         .writeText(tripUrl)
-        .then(() => alert('Shareable URL copied to clipboard! Anyone with this link can view the trip data.'))
+        .then(() =>
+          alert(
+            'Shareable URL copied to clipboard! Anyone with this link can view the trip data.'
+          )
+        )
         .catch(() => {
           // Fallback if clipboard API fails
           const input = document.createElement('input')
@@ -1527,7 +1531,9 @@ export default {
           input.select()
           document.execCommand('copy')
           document.body.removeChild(input)
-          alert('Shareable URL copied to clipboard! Anyone with this link can view the trip data.')
+          alert(
+            'Shareable URL copied to clipboard! Anyone with this link can view the trip data.'
+          )
         })
     },
 
