@@ -294,8 +294,8 @@ describe('ExpenseTracker', () => {
         expect(wrapper.vm.getTotalShouldPay('Alice')).toBe(100)
 
         // Bob and Charlie should split the remaining 200 equally (100 each)
-        expect(wrapper.vm.getTotalShouldPay('Bob')).toBe(100)
-        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBe(100)
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBeCloseTo(100, 2)
+        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBeCloseTo(100, 2)
 
         // Total should equal the expense amount
         const total =
@@ -309,8 +309,14 @@ describe('ExpenseTracker', () => {
         const expense = wrapper.vm.expenses[0]
 
         expect(wrapper.vm.getCrossTableAmount(expense, 'Alice')).toBe(100)
-        expect(wrapper.vm.getCrossTableAmount(expense, 'Bob')).toBe(100)
-        expect(wrapper.vm.getCrossTableAmount(expense, 'Charlie')).toBe(100)
+        expect(wrapper.vm.getCrossTableAmount(expense, 'Bob')).toBeCloseTo(
+          100,
+          2
+        )
+        expect(wrapper.vm.getCrossTableAmount(expense, 'Charlie')).toBeCloseTo(
+          100,
+          2
+        )
       })
 
       it('should handle complex scenario with multiple members and partial splits', () => {
@@ -567,13 +573,13 @@ describe('ExpenseTracker', () => {
         // Total: 1159 + 7375 + 321 + 4366.67 + 1557 = 14778.67
         const aliceShouldPay = wrapper.vm.getTotalShouldPay('Alice')
         expect(Math.round(aliceShouldPay)).toBe(
-          Math.round(1159 + 7375 + 321 + 4366.67 + 1557),
+          Math.round(1159 + 7375 + 321 + 4366.67 + 1557)
         )
 
         // Alice's balance should be: 115432 - 14778.67 = 100653.33
         const aliceBalance = wrapper.vm.getBalance('Alice')
         expect(Math.round(aliceBalance)).toBe(
-          Math.round(115432 - (1159 + 7375 + 321 + 4366.67 + 1557)),
+          Math.round(115432 - (1159 + 7375 + 321 + 4366.67 + 1557))
         )
 
         // Leo should pay:
@@ -590,7 +596,7 @@ describe('ExpenseTracker', () => {
         const totalExpenses = 12754 + 98500 + 4178 + 58900 + 10900
         const totalShouldPay = wrapper.vm.members.reduce(
           (sum, member) => sum + wrapper.vm.getTotalShouldPay(member),
-          0,
+          0
         )
         expect(Math.round(totalShouldPay)).toBe(totalExpenses)
       })
@@ -645,6 +651,448 @@ describe('ExpenseTracker', () => {
       mockFileReader.onload({ target: { result: JSON.stringify(mockData) } })
 
       expect(localStorage.setItem).toHaveBeenCalled()
+    })
+  })
+
+  describe('Multi-Currency Support', () => {
+    beforeEach(() => {
+      wrapper.vm.tripName = 'Multi-Currency Trip'
+      wrapper.vm.baseCurrency = 'JPY'
+      wrapper.vm.currencySymbol = '¥'
+      wrapper.vm.members = ['Alice', 'Bob', 'Charlie']
+    })
+
+    describe('Currency Configuration', () => {
+      it('should initialize with default currency (JPY)', () => {
+        expect(wrapper.vm.baseCurrency).toBe('JPY')
+        expect(wrapper.vm.currencySymbol).toBe('¥')
+      })
+
+      it('should allow changing base currency', async () => {
+        wrapper.vm.baseCurrency = 'USD'
+        wrapper.vm.onBaseCurrencyChange()
+
+        expect(wrapper.vm.currencySymbol).toBe('$')
+        expect(wrapper.vm.newExpense.currency).toBe('USD')
+      })
+
+      it('should include currency fields in saved trip', async () => {
+        wrapper.vm.tripName = 'USD Trip'
+        wrapper.vm.baseCurrency = 'USD'
+        wrapper.vm.currencySymbol = '$'
+        await wrapper.vm.saveTrip()
+
+        // Get the last setItem call (most recent save)
+        const lastCallIndex = localStorage.setItem.mock.calls.length - 1
+        const savedData = JSON.parse(
+          localStorage.setItem.mock.calls[lastCallIndex][1]
+        )
+        const savedTrip = savedData[savedData.length - 1]
+
+        expect(savedTrip.baseCurrency).toBe('USD')
+        expect(savedTrip.currencySymbol).toBe('$')
+      })
+    })
+
+    describe('Base Amount Calculation', () => {
+      it('should return amount when no exchange rate', () => {
+        const expense = { amount: 100 }
+        expect(wrapper.vm.getBaseAmount(expense)).toBe(100)
+      })
+
+      it('should use baseAmount if available', () => {
+        const expense = { amount: 100, exchangeRate: 20, baseAmount: 2000 }
+        expect(wrapper.vm.getBaseAmount(expense)).toBe(2000)
+      })
+
+      it('should calculate baseAmount from exchangeRate', () => {
+        const expense = { amount: 500, exchangeRate: 20 }
+        expect(wrapper.vm.getBaseAmount(expense)).toBe(10000)
+      })
+
+      it('should handle exchange rate of 1', () => {
+        const expense = { amount: 100, exchangeRate: 1 }
+        expect(wrapper.vm.getBaseAmount(expense)).toBe(100)
+      })
+    })
+
+    describe('Exchange Rate Input - Manual Mode', () => {
+      it('should calculate baseAmount when manual rate changes', () => {
+        wrapper.vm.newExpense.amount = 500
+        wrapper.vm.newExpense.manualRate = 20
+        wrapper.vm.onManualRateChange()
+
+        expect(wrapper.vm.newExpense.exchangeRate).toBe(20)
+        expect(wrapper.vm.newExpense.baseAmount).toBe(10000)
+      })
+
+      it('should handle decimal exchange rates', () => {
+        wrapper.vm.newExpense.amount = 100
+        wrapper.vm.newExpense.manualRate = 0.05
+        wrapper.vm.onManualRateChange()
+
+        expect(wrapper.vm.newExpense.exchangeRate).toBe(0.05)
+        expect(wrapper.vm.newExpense.baseAmount).toBe(5)
+      })
+    })
+
+    describe('Exchange Rate Input - Calculate Mode', () => {
+      it('should calculate exchange rate from two amounts', () => {
+        wrapper.vm.newExpense.foreignAmount = 500
+        wrapper.vm.newExpense.calculatedBaseAmount = 10000
+        wrapper.vm.onForeignAmountChange()
+
+        expect(wrapper.vm.newExpense.exchangeRate).toBe(20)
+        expect(wrapper.vm.newExpense.amount).toBe(500)
+        expect(wrapper.vm.newExpense.baseAmount).toBe(10000)
+      })
+
+      it('should update when base amount changes', () => {
+        wrapper.vm.newExpense.foreignAmount = 500
+        wrapper.vm.newExpense.calculatedBaseAmount = 15000
+        wrapper.vm.onCalculatedBaseAmountChange()
+
+        expect(wrapper.vm.newExpense.exchangeRate).toBe(30)
+        expect(wrapper.vm.newExpense.amount).toBe(500)
+        expect(wrapper.vm.newExpense.baseAmount).toBe(15000)
+      })
+
+      it('should handle fractional exchange rates', () => {
+        wrapper.vm.newExpense.foreignAmount = 1000
+        wrapper.vm.newExpense.calculatedBaseAmount = 850
+        wrapper.vm.onCalculatedBaseAmountChange()
+
+        expect(wrapper.vm.newExpense.exchangeRate).toBe(0.85)
+      })
+    })
+
+    describe('Expense Addition with Foreign Currency', () => {
+      it('should add expense in foreign currency with correct base amount', async () => {
+        wrapper.vm.newExpense = {
+          description: 'Hong Kong Dinner',
+          amount: 500,
+          paidBy: ['Alice'],
+          paidAmounts: { Alice: 500 },
+          splitWith: ['Alice', 'Bob', 'Charlie'],
+          splitAmounts: {},
+          date: '2024-01-01',
+          currency: 'HKD',
+          exchangeRate: 20,
+          baseAmount: 10000,
+          useCustomCurrency: true,
+        }
+
+        await wrapper.vm.addExpense()
+
+        expect(wrapper.vm.expenses.length).toBe(1)
+        const expense = wrapper.vm.expenses[0]
+        expect(expense.currency).toBe('HKD')
+        expect(expense.exchangeRate).toBe(20)
+        expect(expense.baseAmount).toBe(10000)
+        expect(expense.amount).toBe(500)
+      })
+
+      it('should default to base currency when not using custom currency', async () => {
+        wrapper.vm.newExpense = {
+          description: 'Local Expense',
+          amount: 3000,
+          paidBy: ['Bob'],
+          paidAmounts: { Bob: 3000 },
+          splitWith: ['Alice', 'Bob'],
+          splitAmounts: {},
+          date: '2024-01-01',
+          useCustomCurrency: false,
+        }
+
+        await wrapper.vm.addExpense()
+
+        const expense = wrapper.vm.expenses[0]
+        expect(expense.currency).toBe('JPY')
+        expect(expense.exchangeRate).toBe(1)
+        expect(expense.baseAmount).toBe(3000)
+      })
+    })
+
+    describe('Multi-Currency Calculations', () => {
+      beforeEach(() => {
+        wrapper.vm.baseCurrency = 'JPY'
+        wrapper.vm.expenses = [
+          {
+            description: 'Hotel in HK',
+            amount: 500,
+            paidBy: 'Alice',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: {},
+            currency: 'HKD',
+            exchangeRate: 20,
+            baseAmount: 10000,
+          },
+          {
+            description: 'Train in Tokyo',
+            amount: 3000,
+            paidBy: 'Bob',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: {},
+            currency: 'JPY',
+            exchangeRate: 1,
+            baseAmount: 3000,
+          },
+          {
+            description: 'Dinner in USD',
+            amount: 100,
+            paidBy: 'Charlie',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: {},
+            currency: 'USD',
+            exchangeRate: 150,
+            baseAmount: 15000,
+          },
+        ]
+      })
+
+      it('should calculate total paid in base currency', () => {
+        expect(wrapper.vm.getTotalPaid('Alice')).toBe(10000)
+        expect(wrapper.vm.getTotalPaid('Bob')).toBe(3000)
+        expect(wrapper.vm.getTotalPaid('Charlie')).toBe(15000)
+      })
+
+      it('should calculate total should pay in base currency', () => {
+        const total = 10000 + 3000 + 15000
+        const expectedPerPerson = total / 3
+
+        expect(wrapper.vm.getTotalShouldPay('Alice')).toBeCloseTo(
+          expectedPerPerson,
+          2
+        )
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBeCloseTo(
+          expectedPerPerson,
+          2
+        )
+        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBeCloseTo(
+          expectedPerPerson,
+          2
+        )
+      })
+
+      it('should calculate correct balances', () => {
+        const totalExpenses = 10000 + 3000 + 15000
+        const perPerson = totalExpenses / 3
+
+        const aliceBalance = 10000 - perPerson
+        const bobBalance = 3000 - perPerson
+        const charlieBalance = 15000 - perPerson
+
+        expect(wrapper.vm.getBalance('Alice')).toBeCloseTo(aliceBalance, 2)
+        expect(wrapper.vm.getBalance('Bob')).toBeCloseTo(bobBalance, 2)
+        expect(wrapper.vm.getBalance('Charlie')).toBeCloseTo(charlieBalance, 2)
+      })
+
+      it('should generate correct payment plan with multi-currency', () => {
+        const payments = wrapper.vm.getPaymentPlan()
+
+        expect(payments.length).toBeGreaterThan(0)
+
+        // Verify all payments are positive
+        payments.forEach((payment) => {
+          expect(payment.amount).toBeGreaterThan(0)
+        })
+      })
+    })
+
+    describe('Multi-Currency with Custom Split Amounts', () => {
+      it('should handle custom split amounts proportionally', () => {
+        wrapper.vm.expenses = [
+          {
+            description: 'Hotel',
+            amount: 600,
+            paidBy: 'Alice',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: { Alice: 300, Bob: 200, Charlie: 100 },
+            currency: 'HKD',
+            exchangeRate: 20,
+            baseAmount: 12000,
+          },
+        ]
+
+        // Alice should pay: 300/600 * 12000 = 6000
+        // Bob should pay: 200/600 * 12000 = 4000
+        // Charlie should pay: 100/600 * 12000 = 2000
+
+        expect(wrapper.vm.getTotalShouldPay('Alice')).toBeCloseTo(6000, 2)
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBeCloseTo(4000, 2)
+        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBeCloseTo(2000, 2)
+      })
+    })
+
+    describe('Multi-Payer with Foreign Currency', () => {
+      it('should handle multiple payers with foreign currency', () => {
+        wrapper.vm.expenses = [
+          {
+            description: 'Shared expense',
+            amount: 200,
+            paidBy: ['Alice', 'Bob'],
+            paidAmounts: { Alice: 100, Bob: 100 },
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: {},
+            currency: 'USD',
+            exchangeRate: 150,
+            baseAmount: 30000,
+          },
+        ]
+
+        // Alice paid 100/200 * 30000 = 15000 JPY
+        // Bob paid 100/200 * 30000 = 15000 JPY
+        expect(wrapper.vm.getTotalPaid('Alice')).toBe(15000)
+        expect(wrapper.vm.getTotalPaid('Bob')).toBe(15000)
+        expect(wrapper.vm.getTotalPaid('Charlie')).toBe(0)
+
+        // Each should pay 30000/3 = 10000 JPY
+        expect(wrapper.vm.getTotalShouldPay('Alice')).toBe(10000)
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBe(10000)
+        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBe(10000)
+
+        // Balances: Alice +5000, Bob +5000, Charlie -10000
+        expect(wrapper.vm.getBalance('Alice')).toBe(5000)
+        expect(wrapper.vm.getBalance('Bob')).toBe(5000)
+        expect(wrapper.vm.getBalance('Charlie')).toBe(-10000)
+      })
+    })
+
+    describe('Backward Compatibility', () => {
+      it('should handle legacy expenses without currency fields', () => {
+        wrapper.vm.baseCurrency = 'JPY'
+        wrapper.vm.expenses = [
+          {
+            description: 'Old Expense',
+            amount: 5000,
+            paidBy: 'Alice',
+            splitWith: ['Alice', 'Bob'],
+            splitAmounts: {},
+          },
+        ]
+
+        // Should treat as JPY with rate 1
+        expect(wrapper.vm.getBaseAmount(wrapper.vm.expenses[0])).toBe(5000)
+        expect(wrapper.vm.getTotalPaid('Alice')).toBe(5000)
+        expect(wrapper.vm.getTotalShouldPay('Alice')).toBe(2500)
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBe(2500)
+      })
+
+      it('should migrate legacy trip on load', () => {
+        const legacyTrip = {
+          id: 'legacy-trip',
+          name: 'Old Trip',
+          members: ['Alice', 'Bob'],
+          expenses: [
+            {
+              description: 'Expense 1',
+              amount: 1000,
+              paidBy: 'Alice',
+              splitWith: ['Alice', 'Bob'],
+              splitAmounts: {},
+            },
+          ],
+        }
+
+        wrapper.vm.tripList = [legacyTrip]
+        wrapper.vm.currentTripId = 'legacy-trip'
+        wrapper.vm.loadTrip()
+
+        // Should have default currency
+        expect(wrapper.vm.baseCurrency).toBe('JPY')
+        expect(wrapper.vm.currencySymbol).toBe('¥')
+
+        // Expenses should be migrated
+        expect(wrapper.vm.expenses[0].currency).toBe('JPY')
+        expect(wrapper.vm.expenses[0].exchangeRate).toBe(1)
+        expect(wrapper.vm.expenses[0].baseAmount).toBe(1000)
+      })
+    })
+
+    describe('Real-World Scenario: Japan-Hong Kong Trip', () => {
+      it('should handle complex multi-currency trip correctly', () => {
+        wrapper.vm.baseCurrency = 'JPY'
+        wrapper.vm.members = ['Alice', 'Bob', 'Charlie']
+        wrapper.vm.expenses = [
+          {
+            description: 'Flight tickets (paid in Tokyo)',
+            amount: 30000,
+            paidBy: 'Alice',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: {},
+            currency: 'JPY',
+            exchangeRate: 1,
+            baseAmount: 30000,
+          },
+          {
+            description: 'Hotel in Hong Kong',
+            amount: 1500,
+            paidBy: 'Bob',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: {},
+            currency: 'HKD',
+            exchangeRate: 19.5,
+            baseAmount: 29250,
+          },
+          {
+            description: 'Dinner in Hong Kong',
+            amount: 800,
+            paidBy: 'Charlie',
+            splitWith: ['Alice', 'Bob', 'Charlie'],
+            splitAmounts: {},
+            currency: 'HKD',
+            exchangeRate: 19.5,
+            baseAmount: 15600,
+          },
+          {
+            description: 'Shopping in Tokyo',
+            amount: 15000,
+            paidBy: ['Alice', 'Bob'],
+            paidAmounts: { Alice: 8000, Bob: 7000 },
+            splitWith: ['Alice', 'Bob'],
+            splitAmounts: {},
+            currency: 'JPY',
+            exchangeRate: 1,
+            baseAmount: 15000,
+          },
+        ]
+
+        const totalExpenses = 30000 + 29250 + 15600 + 15000 // 89850 JPY
+
+        // Alice paid: 30000 + (8000/15000)*15000 = 38000 JPY
+        // Bob paid: (7000/15000)*15000 + 29250 = 36250 JPY
+        // Charlie paid: 15600 JPY
+
+        expect(wrapper.vm.getTotalPaid('Alice')).toBeCloseTo(38000, 0)
+        expect(wrapper.vm.getTotalPaid('Bob')).toBeCloseTo(36250, 0)
+        expect(wrapper.vm.getTotalPaid('Charlie')).toBeCloseTo(15600, 0)
+
+        // Should pay:
+        // Flights split 3 ways: 30000/3 = 10000 each
+        // Hotel split 3 ways: 29250/3 = 9750 each
+        // Dinner split 3 ways: 15600/3 = 5200 each
+        // Shopping split 2 ways (Alice, Bob): 15000/2 = 7500 each
+
+        // Alice: 10000 + 9750 + 5200 + 7500 = 32450
+        // Bob: 10000 + 9750 + 5200 + 7500 = 32450
+        // Charlie: 10000 + 9750 + 5200 = 24950
+
+        expect(wrapper.vm.getTotalShouldPay('Alice')).toBeCloseTo(32450, 0)
+        expect(wrapper.vm.getTotalShouldPay('Bob')).toBeCloseTo(32450, 0)
+        expect(wrapper.vm.getTotalShouldPay('Charlie')).toBeCloseTo(24950, 0)
+
+        // Balances
+        expect(wrapper.vm.getBalance('Alice')).toBeCloseTo(5550, 0)
+        expect(wrapper.vm.getBalance('Bob')).toBeCloseTo(3800, 0)
+        expect(wrapper.vm.getBalance('Charlie')).toBeCloseTo(-9350, 0)
+
+        // Payment plan should have Charlie paying Alice and Bob
+        const payments = wrapper.vm.getPaymentPlan()
+        expect(payments.length).toBeGreaterThan(0)
+
+        const charliePayments = payments.filter((p) => p.from === 'Charlie')
+        expect(charliePayments.length).toBeGreaterThan(0)
+      })
     })
   })
 })
