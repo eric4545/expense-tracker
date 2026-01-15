@@ -587,15 +587,13 @@
 
 <script>
 import { computed, onMounted, ref } from 'vue'
+import { CurrencyService } from '../services/CurrencyService.js'
+import { ExpenseCalculationService } from '../services/ExpenseCalculationService.js'
+import { storageService } from '../services/StorageService.js'
 import {
   CURRENCIES,
   DEFAULT_CURRENCY,
   DEFAULT_SYMBOL,
-  calculateBaseAmount,
-  calculateExchangeRate,
-  formatCurrency,
-  getCurrencySymbol,
-  isValidExchangeRate,
 } from '../utils/currencies.js'
 import ThemeToggle from './ThemeToggle.vue'
 
@@ -686,7 +684,7 @@ export default {
     saveTrip() {
       if (!this.tripName.trim()) return
 
-      const trips = JSON.parse(localStorage.getItem('trips') || '[]')
+      const trips = storageService.getTrips()
 
       // If creating a new trip, check for duplicate names
       if (!this.currentTripId) {
@@ -710,14 +708,7 @@ export default {
         currencySymbol: this.currencySymbol,
       }
 
-      const existingIndex = trips.findIndex((t) => t.id === tripData.id)
-      if (existingIndex >= 0) {
-        trips[existingIndex] = tripData
-      } else {
-        trips.push(tripData)
-      }
-
-      localStorage.setItem('trips', JSON.stringify(trips))
+      storageService.saveTrip(tripData)
       this.currentTripId = tripData.id
       this.loadTripList()
       this.updateURL()
@@ -727,9 +718,7 @@ export default {
       if (!this.currentTripId) return
       if (!confirm('Are you sure you want to delete this trip?')) return
 
-      const trips = JSON.parse(localStorage.getItem('trips') || '[]')
-      const filteredTrips = trips.filter((t) => t.id !== this.currentTripId)
-      localStorage.setItem('trips', JSON.stringify(filteredTrips))
+      storageService.deleteTrip(this.currentTripId)
 
       this.currentTripId = ''
       this.resetTripData()
@@ -737,7 +726,7 @@ export default {
     },
 
     loadTripList() {
-      const trips = JSON.parse(localStorage.getItem('trips') || '[]')
+      const trips = storageService.getTrips()
       this.tripList = trips.sort((a, b) => b.createdAt - a.createdAt)
     },
 
@@ -817,7 +806,7 @@ export default {
     },
 
     onBaseCurrencyChange() {
-      this.currencySymbol = getCurrencySymbol(this.baseCurrency)
+      this.currencySymbol = CurrencyService.getSymbol(this.baseCurrency)
       this.newExpense.currency = this.baseCurrency
     },
 
@@ -858,7 +847,7 @@ export default {
           this.newExpense.foreignAmount &&
           this.newExpense.calculatedBaseAmount
         ) {
-          this.newExpense.manualRate = calculateExchangeRate(
+          this.newExpense.manualRate = CurrencyService.calculateExchangeRate(
             this.newExpense.foreignAmount,
             this.newExpense.calculatedBaseAmount
           )
@@ -866,10 +855,11 @@ export default {
       } else {
         this.newExpense.foreignAmount = this.newExpense.amount
         if (this.newExpense.manualRate) {
-          this.newExpense.calculatedBaseAmount = calculateBaseAmount(
-            this.newExpense.amount,
-            this.newExpense.manualRate
-          )
+          this.newExpense.calculatedBaseAmount =
+            CurrencyService.calculateBaseAmount(
+              this.newExpense.amount,
+              this.newExpense.manualRate
+            )
         }
       }
     },
@@ -877,10 +867,10 @@ export default {
     onManualRateChange() {
       if (
         this.newExpense.manualRate &&
-        isValidExchangeRate(this.newExpense.manualRate)
+        CurrencyService.isValidExchangeRate(this.newExpense.manualRate)
       ) {
         this.newExpense.exchangeRate = this.newExpense.manualRate
-        this.newExpense.baseAmount = calculateBaseAmount(
+        this.newExpense.baseAmount = CurrencyService.calculateBaseAmount(
           this.newExpense.amount,
           this.newExpense.manualRate
         )
@@ -893,11 +883,11 @@ export default {
         this.newExpense.calculatedBaseAmount &&
         this.newExpense.foreignAmount > 0
       ) {
-        const rate = calculateExchangeRate(
+        const rate = CurrencyService.calculateExchangeRate(
           this.newExpense.foreignAmount,
           this.newExpense.calculatedBaseAmount
         )
-        if (isValidExchangeRate(rate)) {
+        if (CurrencyService.isValidExchangeRate(rate)) {
           this.newExpense.exchangeRate = rate
           this.newExpense.amount = this.newExpense.foreignAmount
           this.newExpense.baseAmount = this.newExpense.calculatedBaseAmount
@@ -911,11 +901,11 @@ export default {
         this.newExpense.calculatedBaseAmount &&
         this.newExpense.foreignAmount > 0
       ) {
-        const rate = calculateExchangeRate(
+        const rate = CurrencyService.calculateExchangeRate(
           this.newExpense.foreignAmount,
           this.newExpense.calculatedBaseAmount
         )
-        if (isValidExchangeRate(rate)) {
+        if (CurrencyService.isValidExchangeRate(rate)) {
           this.newExpense.exchangeRate = rate
           this.newExpense.amount = this.newExpense.foreignAmount
           this.newExpense.baseAmount = this.newExpense.calculatedBaseAmount
@@ -962,18 +952,20 @@ export default {
           this.editingExpense.foreignAmount &&
           this.editingExpense.calculatedBaseAmount
         ) {
-          this.editingExpense.manualRate = calculateExchangeRate(
-            this.editingExpense.foreignAmount,
-            this.editingExpense.calculatedBaseAmount
-          )
+          this.editingExpense.manualRate =
+            CurrencyService.calculateExchangeRate(
+              this.editingExpense.foreignAmount,
+              this.editingExpense.calculatedBaseAmount
+            )
         }
       } else {
         this.editingExpense.foreignAmount = this.editingExpense.amount
         if (this.editingExpense.manualRate) {
-          this.editingExpense.calculatedBaseAmount = calculateBaseAmount(
-            this.editingExpense.amount,
-            this.editingExpense.manualRate
-          )
+          this.editingExpense.calculatedBaseAmount =
+            CurrencyService.calculateBaseAmount(
+              this.editingExpense.amount,
+              this.editingExpense.manualRate
+            )
         }
       }
     },
@@ -981,10 +973,10 @@ export default {
     onEditManualRateChange() {
       if (
         this.editingExpense.manualRate &&
-        isValidExchangeRate(this.editingExpense.manualRate)
+        CurrencyService.isValidExchangeRate(this.editingExpense.manualRate)
       ) {
         this.editingExpense.exchangeRate = this.editingExpense.manualRate
-        this.editingExpense.baseAmount = calculateBaseAmount(
+        this.editingExpense.baseAmount = CurrencyService.calculateBaseAmount(
           this.editingExpense.amount,
           this.editingExpense.manualRate
         )
@@ -997,11 +989,11 @@ export default {
         this.editingExpense.calculatedBaseAmount &&
         this.editingExpense.foreignAmount > 0
       ) {
-        const rate = calculateExchangeRate(
+        const rate = CurrencyService.calculateExchangeRate(
           this.editingExpense.foreignAmount,
           this.editingExpense.calculatedBaseAmount
         )
-        if (isValidExchangeRate(rate)) {
+        if (CurrencyService.isValidExchangeRate(rate)) {
           this.editingExpense.exchangeRate = rate
           this.editingExpense.amount = this.editingExpense.foreignAmount
           this.editingExpense.baseAmount =
@@ -1016,11 +1008,11 @@ export default {
         this.editingExpense.calculatedBaseAmount &&
         this.editingExpense.foreignAmount > 0
       ) {
-        const rate = calculateExchangeRate(
+        const rate = CurrencyService.calculateExchangeRate(
           this.editingExpense.foreignAmount,
           this.editingExpense.calculatedBaseAmount
         )
-        if (isValidExchangeRate(rate)) {
+        if (CurrencyService.isValidExchangeRate(rate)) {
           this.editingExpense.exchangeRate = rate
           this.editingExpense.amount = this.editingExpense.foreignAmount
           this.editingExpense.baseAmount =
@@ -1058,7 +1050,7 @@ export default {
           expenseToAdd.exchangeRate = 1
           expenseToAdd.baseAmount = expenseToAdd.amount
         } else if (!expenseToAdd.baseAmount) {
-          expenseToAdd.baseAmount = calculateBaseAmount(
+          expenseToAdd.baseAmount = CurrencyService.calculateBaseAmount(
             expenseToAdd.amount,
             expenseToAdd.exchangeRate
           )
@@ -1166,7 +1158,7 @@ export default {
           !expenseToSave.baseAmount ||
           expenseToSave.baseAmount === expenseToSave.amount
         ) {
-          expenseToSave.baseAmount = calculateBaseAmount(
+          expenseToSave.baseAmount = CurrencyService.calculateBaseAmount(
             expenseToSave.amount,
             expenseToSave.exchangeRate
           )
@@ -1203,114 +1195,26 @@ export default {
     },
 
     getTotalPaid(member) {
-      return this.expenses.reduce((sum, expense) => {
-        const baseAmount = this.getBaseAmount(expense)
-        if (Array.isArray(expense.paidBy)) {
-          // If multiple payers with specific amounts
-          // Convert proportionally to base currency
-          if (expense.paidAmounts[member]) {
-            const paidRatio = expense.paidAmounts[member] / expense.amount
-            return sum + baseAmount * paidRatio
-          }
-          return sum
-        }
-        if (expense.paidBy === member) {
-          // Single payer
-          return sum + baseAmount
-        }
-        return sum
-      }, 0)
+      return ExpenseCalculationService.getTotalPaid(this.expenses, member)
     },
 
     getTotalShouldPay(member) {
-      let total = 0
-      for (const expense of this.expenses) {
-        const baseAmount = this.getBaseAmount(expense)
-        if (expense.splitWith.includes(member)) {
-          if (expense.splitAmounts?.[member]) {
-            // Convert split amount proportionally to base currency
-            const splitRatio = expense.splitAmounts[member] / expense.amount
-            total += baseAmount * splitRatio
-          } else {
-            // Calculate remaining amount after accounting for specified split amounts
-            const specifiedTotal = Object.values(
-              expense.splitAmounts || {}
-            ).reduce((sum, amount) => sum + amount, 0)
-            const specifiedRatio = specifiedTotal / expense.amount
-            const remainingAmount = baseAmount * (1 - specifiedRatio)
-            const membersWithoutSpecifiedAmount = expense.splitWith.filter(
-              (m) => !expense.splitAmounts?.[m]
-            ).length
-
-            if (membersWithoutSpecifiedAmount > 0) {
-              total += remainingAmount / membersWithoutSpecifiedAmount
-            } else {
-              // Fallback: equal split among all
-              total += baseAmount / expense.splitWith.length
-            }
-          }
-        }
-      }
-      return total
+      return ExpenseCalculationService.getTotalShouldPay(this.expenses, member)
     },
 
     getBalance(member) {
-      const paid = this.getTotalPaid(member)
-      const shouldPay = this.getTotalShouldPay(member)
-      return Math.round((paid - shouldPay) * 100) / 100
+      return ExpenseCalculationService.getBalance(this.expenses, member)
     },
 
     getPaymentPlan() {
-      const payments = []
-      const balances = {}
-
-      // Calculate initial balances
-      this.members.forEach((member) => {
-        balances[member] = this.getBalance(member)
-      })
-
-      // Sort members by balance
-      const creditors = [...this.members]
-        .filter((m) => balances[m] > 0)
-        .sort((a, b) => balances[b] - balances[a])
-
-      const debtors = [...this.members]
-        .filter((m) => balances[m] < 0)
-        .sort((a, b) => balances[a] - balances[b]) // Most negative first
-
-      // Process each debtor
-      debtors.forEach((debtor) => {
-        let remainingDebt = Math.abs(balances[debtor])
-
-        // Try to settle with creditors
-        creditors.forEach((creditor) => {
-          if (remainingDebt > 0 && balances[creditor] > 0) {
-            const amount = Math.min(remainingDebt, balances[creditor])
-            if (amount > 0.01) {
-              // Only add payments greater than 1 cent
-              payments.push({
-                from: debtor,
-                to: creditor,
-                amount: Math.round(amount * 100) / 100,
-              })
-              remainingDebt -= amount
-              balances[creditor] -= amount
-            }
-          }
-        })
-      })
-
-      return payments.sort((a, b) => b.amount - a.amount) // Sort by amount descending
+      return ExpenseCalculationService.getPaymentPlan(
+        this.expenses,
+        this.members
+      )
     },
 
     exportData() {
-      const data = JSON.stringify(
-        {
-          tripList: this.tripList,
-        },
-        null,
-        2
-      )
+      const data = JSON.stringify(storageService.exportData(), null, 2)
       const blob = new Blob([data], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -1381,49 +1285,28 @@ export default {
         reader.onload = (e) => {
           try {
             const data = JSON.parse(e.target.result)
-            const existingTrips = JSON.parse(
-              localStorage.getItem('trips') || '[]'
-            )
+            const existingTrips = storageService.getTrips()
 
             // Handle old format (single trip)
             if (data.tripName !== undefined) {
               const tripData = {
-                id: data.id || this.generateTripId(), // Use existing ID if available
+                id: data.id || this.generateTripId(),
                 name: data.tripName,
                 members: data.members || [],
                 expenses: data.expenses || [],
                 createdAt: data.createdAt || Date.now(),
               }
-
-              // Update or add the trip
-              const existingIndex = existingTrips.findIndex(
-                (t) => t.id === tripData.id
-              )
-              if (existingIndex >= 0) {
-                existingTrips[existingIndex] = tripData
-              } else {
-                existingTrips.push(tripData)
-              }
-              localStorage.setItem('trips', JSON.stringify(existingTrips))
+              storageService.saveTrip(tripData)
               this.loadTripList()
               this.currentTripId = tripData.id
               this.loadTrip()
             }
             // Handle new format (trip list)
             else if (data.tripList) {
-              // Merge trips, overriding existing ones with same ID
-              const mergedTrips = [...existingTrips]
+              // Merge trips using storage service
               data.tripList.forEach((importedTrip) => {
-                const existingIndex = mergedTrips.findIndex(
-                  (t) => t.id === importedTrip.id
-                )
-                if (existingIndex >= 0) {
-                  mergedTrips[existingIndex] = importedTrip
-                } else {
-                  mergedTrips.push(importedTrip)
-                }
+                storageService.saveTrip(importedTrip)
               })
-              localStorage.setItem('trips', JSON.stringify(mergedTrips))
               this.loadTripList()
               if (data.tripList.length > 0) {
                 this.currentTripId = data.tripList[0].id
@@ -1443,64 +1326,15 @@ export default {
     },
 
     getCrossPaidAmount(payer, receiver) {
-      return this.expenses
-        .filter((e) => {
-          if (Array.isArray(e.paidBy)) {
-            return e.paidBy.includes(payer) && e.splitWith.includes(receiver)
-          }
-          return e.paidBy === payer && e.splitWith.includes(receiver)
-        })
-        .reduce((sum, e) => {
-          if (Array.isArray(e.paidBy)) {
-            // For multiple payers
-            const paidAmount = e.paidAmounts[payer] || 0
-            let splitShare
-            if (e.splitAmounts?.[receiver]) {
-              splitShare = e.splitAmounts[receiver]
-            } else {
-              // Calculate remaining amount after accounting for specified split amounts
-              const specifiedTotal = Object.values(e.splitAmounts || {}).reduce(
-                (sum, amount) => sum + amount,
-                0
-              )
-              const remainingAmount = e.amount - specifiedTotal
-              const membersWithoutSpecifiedAmount = e.splitWith.filter(
-                (m) => !e.splitAmounts?.[m]
-              ).length
-              splitShare =
-                membersWithoutSpecifiedAmount > 0
-                  ? remainingAmount / membersWithoutSpecifiedAmount
-                  : e.amount / e.splitWith.length
-            }
-            if (payer === receiver) {
-              return sum + splitShare
-            }
-            return sum + splitShare
-          }
-          // For single payer
-          if (e.splitAmounts?.[receiver]) {
-            return sum + e.splitAmounts[receiver]
-          }
-          // Calculate remaining amount after accounting for specified split amounts
-          const specifiedTotal = Object.values(e.splitAmounts || {}).reduce(
-            (sum, amount) => sum + amount,
-            0
-          )
-          const remainingAmount = e.amount - specifiedTotal
-          const membersWithoutSpecifiedAmount = e.splitWith.filter(
-            (m) => !e.splitAmounts?.[m]
-          ).length
-          return (
-            sum +
-            (membersWithoutSpecifiedAmount > 0
-              ? remainingAmount / membersWithoutSpecifiedAmount
-              : e.amount / e.splitWith.length)
-          )
-        }, 0)
+      return ExpenseCalculationService.getCrossPaidAmount(
+        this.expenses,
+        payer,
+        receiver
+      )
     },
 
     getTotalExpenses() {
-      return this.expenses.reduce((sum, e) => sum + e.amount, 0)
+      return ExpenseCalculationService.getTotalExpenses(this.expenses)
     },
 
     toggleCrossTable() {
@@ -1531,32 +1365,13 @@ export default {
       const payment = this.getPaymentPlan().find(
         (p) => p.from === debtor && p.to === creditor
       )
-      return payment ? formatCurrency(payment.amount, this.baseCurrency) : '-'
+      return payment
+        ? this.formatCurrency(payment.amount, this.baseCurrency)
+        : '-'
     },
 
     getCrossTableAmount(expense, member) {
-      if (!expense.splitWith.includes(member)) return 0
-      const baseAmount = this.getBaseAmount(expense)
-      if (expense.splitAmounts?.[member]) {
-        // Convert split amount proportionally to base currency
-        const splitRatio = expense.splitAmounts[member] / expense.amount
-        return baseAmount * splitRatio
-      }
-      // Calculate remaining amount after accounting for specified split amounts
-      const specifiedTotal = Object.values(expense.splitAmounts || {}).reduce(
-        (sum, amount) => sum + amount,
-        0
-      )
-      const specifiedRatio = specifiedTotal / expense.amount
-      const remainingAmount = baseAmount * (1 - specifiedRatio)
-      const membersWithoutSpecifiedAmount = expense.splitWith.filter(
-        (m) => !expense.splitAmounts?.[m]
-      ).length
-
-      if (membersWithoutSpecifiedAmount > 0) {
-        return remainingAmount / membersWithoutSpecifiedAmount
-      }
-      return baseAmount / expense.splitWith.length
+      return ExpenseCalculationService.getCrossTableAmount(expense, member)
     },
 
     updateSplitAmounts() {
@@ -1636,7 +1451,7 @@ export default {
         return expense.paidBy
           .map(
             (p) =>
-              `${p} (${formatCurrency(expense.paidAmounts[p], expenseCurrency)})`
+              `${p} (${this.formatCurrency(expense.paidAmounts[p], expenseCurrency)})`
           )
           .join(', ')
       }
@@ -1703,13 +1518,13 @@ export default {
                 ? remainingAmount / membersWithoutSpecifiedAmount
                 : baseAmount / expense.splitWith.length
           }
-          return `${m} (${formatCurrency(amount, this.baseCurrency)})`
+          return `${m} (${this.formatCurrency(amount, this.baseCurrency)})`
         })
         .join(', ')
     },
 
     formatCurrency(amount, currencyCode, showDecimals = false) {
-      return formatCurrency(amount, currencyCode, showDecimals)
+      return CurrencyService.format(amount, currencyCode, showDecimals)
     },
 
     updateAmounts() {
