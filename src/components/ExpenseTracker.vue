@@ -1498,12 +1498,31 @@ export default {
     },
 
     shareViaURL() {
-      const tripUrl = `${window.location.origin}/expense-tracker/trip/${this.currentTripId}`
+      // Gather all trip data to share
+      const tripData = {
+        name: this.tripName,
+        description: this.tripDescription,
+        members: this.members,
+        expenses: this.expenses,
+        baseCurrency: this.baseCurrency,
+        currencySymbol: this.currencySymbol,
+      }
+
+      // Compress the data into URL-safe format
+      const jsonStr = JSON.stringify(tripData)
+      const compressed = this.compressData(jsonStr)
+
+      // Create shareable URL with compressed data in hash
+      const tripUrl = `${window.location.origin}/expense-tracker/#data=${compressed}`
 
       // Copy to clipboard
       navigator.clipboard
         .writeText(tripUrl)
-        .then(() => alert('Trip URL copied to clipboard!'))
+        .then(() =>
+          alert(
+            'Shareable URL copied to clipboard! Anyone with this link can view the trip data.'
+          )
+        )
         .catch(() => {
           // Fallback if clipboard API fails
           const input = document.createElement('input')
@@ -1512,7 +1531,9 @@ export default {
           input.select()
           document.execCommand('copy')
           document.body.removeChild(input)
-          alert('Trip URL copied to clipboard!')
+          alert(
+            'Shareable URL copied to clipboard! Anyone with this link can view the trip data.'
+          )
         })
     },
 

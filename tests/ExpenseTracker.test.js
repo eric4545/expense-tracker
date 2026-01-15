@@ -230,8 +230,21 @@ describe('ExpenseTracker', () => {
   })
 
   describe('URL Sharing', () => {
-    it('should generate correct trip URL', async () => {
-      wrapper.vm.currentTripId = 'test-trip-123'
+    it('should generate compressed shareable URL with trip data', async () => {
+      wrapper.vm.tripName = 'Test Trip'
+      wrapper.vm.tripDescription = 'A test trip'
+      wrapper.vm.members = ['Alice', 'Bob']
+      wrapper.vm.expenses = [
+        {
+          description: 'Dinner',
+          amount: 100,
+          paidBy: 'Alice',
+          splitWith: ['Alice', 'Bob'],
+          splitAmounts: { Alice: 50, Bob: 50 },
+        },
+      ]
+      wrapper.vm.baseCurrency = 'USD'
+      wrapper.vm.currencySymbol = '$'
 
       // Mock clipboard
       navigator.clipboard.writeText = vi.fn().mockResolvedValue()
@@ -239,10 +252,43 @@ describe('ExpenseTracker', () => {
 
       await wrapper.vm.shareViaURL()
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'http://localhost:3000/expense-tracker/trip/test-trip-123'
+      expect(navigator.clipboard.writeText).toHaveBeenCalled()
+      const copiedUrl = navigator.clipboard.writeText.mock.calls[0][0]
+
+      // Verify URL format
+      expect(copiedUrl).toContain('/expense-tracker/#data=')
+
+      // Extract and decompress the data
+      const hashPart = copiedUrl.split('#data=')[1]
+      const decompressed = wrapper.vm.decompressData(hashPart)
+      const tripData = JSON.parse(decompressed)
+
+      // Verify the decompressed data contains all trip information
+      expect(tripData.name).toBe('Test Trip')
+      expect(tripData.description).toBe('A test trip')
+      expect(tripData.members).toEqual(['Alice', 'Bob'])
+      expect(tripData.expenses).toHaveLength(1)
+      expect(tripData.expenses[0].description).toBe('Dinner')
+      expect(tripData.baseCurrency).toBe('USD')
+      expect(tripData.currencySymbol).toBe('$')
+
+      expect(window.alert).toHaveBeenCalledWith(
+        'Shareable URL copied to clipboard! Anyone with this link can view the trip data.'
       )
-      expect(window.alert).toHaveBeenCalledWith('Trip URL copied to clipboard!')
+    })
+
+    it('should compress and decompress data correctly', () => {
+      const originalData = {
+        name: 'Trip',
+        members: ['Alice', 'Bob'],
+        expenses: [],
+      }
+      const jsonStr = JSON.stringify(originalData)
+      const compressed = wrapper.vm.compressData(jsonStr)
+      const decompressed = wrapper.vm.decompressData(compressed)
+      const parsedData = JSON.parse(decompressed)
+
+      expect(parsedData).toEqual(originalData)
     })
   })
 
