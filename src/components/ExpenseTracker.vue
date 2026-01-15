@@ -239,6 +239,92 @@
                     <input type="date" v-model="editingExpense.date" class="form-control form-control-sm">
                   </div>
                 </div>
+
+                <!-- Currency Section for Edit -->
+                <div class="mt-2">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" v-model="editingExpense.useCustomCurrency"
+                           @change="onEditCustomCurrencyToggle">
+                    <label class="form-check-label">
+                      This expense is in a different currency
+                    </label>
+                  </div>
+                </div>
+
+                <div v-if="editingExpense.useCustomCurrency" class="mt-2">
+                  <div class="card bg-light">
+                    <div class="card-body">
+                      <div class="row g-2">
+                        <div class="col-md-4">
+                          <label class="form-label">Expense Currency</label>
+                          <select v-model="editingExpense.currency" class="form-select form-select-sm" @change="onEditExpenseCurrencyChange">
+                            <option v-for="curr in currencies" :key="curr.code" :value="curr.code">
+                              {{ curr.code }} - {{ curr.name }} ({{ curr.symbol }})
+                            </option>
+                          </select>
+                        </div>
+
+                        <div class="col-12">
+                          <label class="form-label">Exchange Rate Input Method</label>
+                          <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" id="edit-manual-rate" value="manual"
+                                   v-model="editingExpense.exchangeRateMode" @change="onEditExchangeRateModeChange">
+                            <label class="btn btn-outline-primary btn-sm" for="edit-manual-rate">Manual Rate</label>
+
+                            <input type="radio" class="btn-check" id="edit-calculate-rate" value="calculate"
+                                   v-model="editingExpense.exchangeRateMode" @change="onEditExchangeRateModeChange">
+                            <label class="btn btn-outline-primary btn-sm" for="edit-calculate-rate">Calculate from Amounts</label>
+                          </div>
+                        </div>
+
+                        <!-- Manual Rate Mode -->
+                        <div v-if="editingExpense.exchangeRateMode === 'manual'" class="col-12">
+                          <label class="form-label">Exchange Rate</label>
+                          <div class="input-group input-group-sm">
+                            <span class="input-group-text">1 {{ editingExpense.currency }} =</span>
+                            <input type="number" v-model.number="editingExpense.manualRate" class="form-control"
+                                   step="0.000001" @input="onEditManualRateChange">
+                            <span class="input-group-text">{{ baseCurrency }}</span>
+                          </div>
+                          <small class="text-muted">
+                            Converted: {{ editingExpense.amount }} {{ editingExpense.currency }} =
+                            {{ formatCurrency(editingExpense.amount * editingExpense.manualRate, baseCurrency) }}
+                          </small>
+                        </div>
+
+                        <!-- Calculate Rate Mode -->
+                        <div v-if="editingExpense.exchangeRateMode === 'calculate'" class="col-12">
+                          <div class="row g-2">
+                            <div class="col-md-5">
+                              <label class="form-label">Amount in {{ editingExpense.currency }}</label>
+                              <div class="input-group input-group-sm">
+                                <input type="number" v-model.number="editingExpense.foreignAmount" class="form-control"
+                                       @input="onEditForeignAmountChange">
+                                <span class="input-group-text">{{ editingExpense.currency }}</span>
+                              </div>
+                            </div>
+                            <div class="col-md-2 text-center pt-4">
+                              <strong>=</strong>
+                            </div>
+                            <div class="col-md-5">
+                              <label class="form-label">Amount in {{ baseCurrency }}</label>
+                              <div class="input-group input-group-sm">
+                                <input type="number" v-model.number="editingExpense.calculatedBaseAmount" class="form-control"
+                                       @input="onEditCalculatedBaseAmountChange">
+                                <span class="input-group-text">{{ baseCurrency }}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <small v-if="editingExpense.foreignAmount && editingExpense.calculatedBaseAmount" class="text-muted">
+                            Exchange rate: 1 {{ editingExpense.currency }} =
+                            {{ (editingExpense.calculatedBaseAmount / editingExpense.foreignAmount).toFixed(6) }} {{ baseCurrency }}
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="mt-2">
                   <label class="form-label mb-1"><strong>Paid By:</strong></label>
                   <button @click="selectAllPayersEdit" class="btn btn-outline-secondary btn-sm ms-2">Select All</button>
@@ -837,6 +923,112 @@ export default {
       }
     },
 
+    // Edit expense currency handlers
+    onEditCustomCurrencyToggle() {
+      if (!this.editingExpense.useCustomCurrency) {
+        // Reset to base currency
+        this.editingExpense.currency = this.baseCurrency
+        this.editingExpense.exchangeRate = 1
+        this.editingExpense.baseAmount = this.editingExpense.amount
+      } else {
+        // Initialize with default values
+        if (this.editingExpense.currency === this.baseCurrency) {
+          // Pick a different currency as default
+          const differentCurrency = CURRENCIES.find(
+            (c) => c.code !== this.baseCurrency
+          )
+          this.editingExpense.currency = differentCurrency
+            ? differentCurrency.code
+            : 'USD'
+        }
+        this.editingExpense.manualRate = this.editingExpense.exchangeRate || 1
+        this.editingExpense.foreignAmount = this.editingExpense.amount
+        this.editingExpense.calculatedBaseAmount =
+          this.editingExpense.baseAmount || this.editingExpense.amount
+      }
+    },
+
+    onEditExpenseCurrencyChange() {
+      // Reset exchange rate when currency changes
+      this.editingExpense.manualRate = 1
+      this.editingExpense.foreignAmount = this.editingExpense.amount
+      this.editingExpense.calculatedBaseAmount = this.editingExpense.amount
+    },
+
+    onEditExchangeRateModeChange() {
+      // Sync values when switching modes
+      if (this.editingExpense.exchangeRateMode === 'manual') {
+        if (
+          this.editingExpense.foreignAmount &&
+          this.editingExpense.calculatedBaseAmount
+        ) {
+          this.editingExpense.manualRate = calculateExchangeRate(
+            this.editingExpense.foreignAmount,
+            this.editingExpense.calculatedBaseAmount
+          )
+        }
+      } else {
+        this.editingExpense.foreignAmount = this.editingExpense.amount
+        if (this.editingExpense.manualRate) {
+          this.editingExpense.calculatedBaseAmount = calculateBaseAmount(
+            this.editingExpense.amount,
+            this.editingExpense.manualRate
+          )
+        }
+      }
+    },
+
+    onEditManualRateChange() {
+      if (
+        this.editingExpense.manualRate &&
+        isValidExchangeRate(this.editingExpense.manualRate)
+      ) {
+        this.editingExpense.exchangeRate = this.editingExpense.manualRate
+        this.editingExpense.baseAmount = calculateBaseAmount(
+          this.editingExpense.amount,
+          this.editingExpense.manualRate
+        )
+      }
+    },
+
+    onEditForeignAmountChange() {
+      if (
+        this.editingExpense.foreignAmount &&
+        this.editingExpense.calculatedBaseAmount &&
+        this.editingExpense.foreignAmount > 0
+      ) {
+        const rate = calculateExchangeRate(
+          this.editingExpense.foreignAmount,
+          this.editingExpense.calculatedBaseAmount
+        )
+        if (isValidExchangeRate(rate)) {
+          this.editingExpense.exchangeRate = rate
+          this.editingExpense.amount = this.editingExpense.foreignAmount
+          this.editingExpense.baseAmount =
+            this.editingExpense.calculatedBaseAmount
+        }
+      }
+    },
+
+    onEditCalculatedBaseAmountChange() {
+      if (
+        this.editingExpense.foreignAmount &&
+        this.editingExpense.calculatedBaseAmount &&
+        this.editingExpense.foreignAmount > 0
+      ) {
+        const rate = calculateExchangeRate(
+          this.editingExpense.foreignAmount,
+          this.editingExpense.calculatedBaseAmount
+        )
+        if (isValidExchangeRate(rate)) {
+          this.editingExpense.exchangeRate = rate
+          this.editingExpense.amount = this.editingExpense.foreignAmount
+          this.editingExpense.baseAmount =
+            this.editingExpense.calculatedBaseAmount
+        }
+      }
+    },
+
     addExpense() {
       if (
         this.newExpense.description &&
@@ -924,6 +1116,16 @@ export default {
           : { [expense.paidBy]: expense.amount },
         splitWith: [...expense.splitWith],
         splitAmounts: { ...(expense.splitAmounts || {}) },
+        // Currency fields
+        currency: expense.currency || this.baseCurrency,
+        exchangeRate: expense.exchangeRate || 1,
+        baseAmount: expense.baseAmount || expense.amount,
+        useCustomCurrency:
+          expense.currency && expense.currency !== this.baseCurrency,
+        exchangeRateMode: 'manual',
+        manualRate: expense.exchangeRate || 1,
+        foreignAmount: expense.amount,
+        calculatedBaseAmount: expense.baseAmount || expense.amount,
       }
     },
 
@@ -954,7 +1156,30 @@ export default {
           })
         }
 
-        this.expenses[this.editingIndex] = { ...this.editingExpense }
+        // Ensure currency fields are set correctly
+        const expenseToSave = { ...this.editingExpense }
+        if (!expenseToSave.useCustomCurrency) {
+          expenseToSave.currency = this.baseCurrency
+          expenseToSave.exchangeRate = 1
+          expenseToSave.baseAmount = expenseToSave.amount
+        } else if (
+          !expenseToSave.baseAmount ||
+          expenseToSave.baseAmount === expenseToSave.amount
+        ) {
+          expenseToSave.baseAmount = calculateBaseAmount(
+            expenseToSave.amount,
+            expenseToSave.exchangeRate
+          )
+        }
+
+        // Remove UI-only fields before saving
+        expenseToSave.useCustomCurrency = undefined
+        expenseToSave.exchangeRateMode = undefined
+        expenseToSave.manualRate = undefined
+        expenseToSave.foreignAmount = undefined
+        expenseToSave.calculatedBaseAmount = undefined
+
+        this.expenses[this.editingIndex] = expenseToSave
         this.editingIndex = -1
         this.editingExpense = null
         this.saveTrip()
