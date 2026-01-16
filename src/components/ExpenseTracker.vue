@@ -427,32 +427,32 @@
       </div>
     </div>
 
-    <!-- Cross-table Format -->
+    <!-- Expense Breakdown by Member -->
     <div class="card mt-4">
       <div class="card-header" style="cursor: pointer" @click="toggleCrossTable">
         <h5 class="card-title mb-0">
           <i :class="showCrossTable ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
-          Cross-table Format
+          Expense Breakdown by Member
         </h5>
       </div>
       <div class="card-body" v-if="showCrossTable">
         <div class="table-responsive">
-          <table class="table table-bordered">
+          <table class="table table-bordered cross-table">
             <thead>
               <tr>
-                <th>Expense Item (Paid By)</th>
+                <th class="sticky-col">Expense Item (Paid By)</th>
                 <th v-for="member in members" :key="member" class="text-center">{{ member }}</th>
                 <th class="text-center">Total</th>
               </tr>
               <tr class="table-secondary">
-                <th>Paid By \ For Who</th>
+                <th class="sticky-col">Paid By \ For Who</th>
                 <th v-for="member in members" :key="member" class="text-center">Should Pay</th>
                 <th class="text-center">Total Paid</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="expense in sortedExpenses" :key="expense.description">
-                <td>
+                <td class="sticky-col">
                   {{ expense.description }}
                   <span class="text-success fw-bold">
                     ({{ expense.paidBy }})
@@ -469,7 +469,7 @@
                 <td class="text-center">{{ formatCurrency(getBaseAmount(expense), baseCurrency) }}</td>
               </tr>
               <tr class="table-secondary">
-                <td><strong>Total</strong></td>
+                <td class="sticky-col"><strong>Total</strong></td>
                 <td v-for="member in members" :key="member" class="text-center">
                   <strong>{{ formatCurrency(getTotalShouldPay(member), baseCurrency) }}</strong>
                 </td>
@@ -523,54 +523,55 @@
       </div>
     </div>
 
-    <!-- Who Owes Who -->
+    <!-- Settlement Guide -->
     <div class="card mt-4">
       <div class="card-header" style="cursor: pointer" @click="toggleWhoOwesWho">
         <h5 class="card-title mb-0">
           <i :class="showWhoOwesWho ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
-          Who Owes Who (Amount to Pay)
+          Settlement Guide
         </h5>
       </div>
       <div class="card-body" v-if="showWhoOwesWho">
-        <div class="table-responsive">
-          <table class="table table-bordered">
-            <thead>
-              <tr>
-                <th>Needs to Pay ↓ \ Should Receive →</th>
-                <th v-for="creditor in getCreditors()" :key="creditor" class="text-center">
-                  {{ creditor }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="debtor in getDebtors()" :key="debtor">
-                <td><strong>{{ debtor }}</strong></td>
-                <td v-for="creditor in getCreditors()" :key="creditor" class="text-center">
-                  {{ getOwedAmount(debtor, creditor) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <h6 class="mb-3">💰 Payment Instructions:</h6>
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>To</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(payment, index) in getPaymentPlan()" :key="index">
+              <td>{{ payment.from }}</td>
+              <td>{{ payment.to }}</td>
+              <td class="fw-bold">{{ formatCurrency(payment.amount, baseCurrency) }}</td>
+            </tr>
+          </tbody>
+        </table>
 
         <div class="mt-4">
-          <h6>Detailed Payment Instructions:</h6>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>From</th>
-                <th>To</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(payment, index) in getPaymentPlan()" :key="index">
-                <td>{{ payment.from }}</td>
-                <td>{{ payment.to }}</td>
-                <td>{{ formatCurrency(payment.amount, baseCurrency) }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <h6 class="mb-3">📊 Detailed Matrix (Who Owes Whom):</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered settlement-table">
+              <thead>
+                <tr>
+                  <th class="sticky-col">Needs to Pay ↓ \ Should Receive →</th>
+                  <th v-for="creditor in getCreditors()" :key="creditor" class="text-center">
+                    {{ creditor }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="debtor in getDebtors()" :key="debtor">
+                  <td class="sticky-col"><strong>{{ debtor }}</strong></td>
+                  <td v-for="creditor in getCreditors()" :key="creditor" class="text-center">
+                    {{ getOwedAmount(debtor, creditor) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -1686,5 +1687,40 @@ export default {
 }
 .total-row {
   font-weight: bold;
+}
+
+/* Sticky first column in cross-table and settlement-table */
+.cross-table .sticky-col,
+.settlement-table .sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: white;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.cross-table thead .sticky-col,
+.settlement-table thead .sticky-col {
+  z-index: 11;
+}
+
+.cross-table .table-secondary .sticky-col {
+  background: var(--bs-table-bg);
+}
+
+/* Add shadow effect when scrolling */
+.cross-table .sticky-col::after,
+.settlement-table .sticky-col::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -10px;
+  bottom: 0;
+  width: 10px;
+  background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 </style>
