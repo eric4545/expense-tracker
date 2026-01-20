@@ -429,14 +429,22 @@
 
     <!-- Expense Breakdown by Member -->
     <div class="card mt-4">
-      <div class="card-header" style="cursor: pointer" @click="toggleCrossTable">
-        <h5 class="card-title mb-0">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0" style="cursor: pointer" @click="toggleCrossTable">
           <i :class="showCrossTable ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
           Expense Breakdown by Member
         </h5>
+        <div v-if="showCrossTable && expenses.length > 0" class="btn-group btn-group-sm" @click.stop>
+          <button @click="exportBreakdownAsImage" class="btn btn-outline-primary" title="Export as Image">
+            <i class="bi bi-image"></i> PNG
+          </button>
+          <button @click="exportBreakdownAsPDF" class="btn btn-outline-primary" title="Export as PDF">
+            <i class="bi bi-file-pdf"></i> PDF
+          </button>
+        </div>
       </div>
       <div class="card-body" v-if="showCrossTable">
-        <div class="table-responsive">
+        <div class="table-responsive" id="expense-breakdown-table">
           <table class="table table-bordered cross-table">
             <thead>
               <tr>
@@ -587,6 +595,8 @@
 </template>
 
 <script>
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import { computed, onMounted, ref } from 'vue'
 import { CurrencyService } from '../services/CurrencyService.js'
 import { ExpenseCalculationService } from '../services/ExpenseCalculationService.js'
@@ -1277,6 +1287,96 @@ export default {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+    },
+
+    async exportBreakdownAsPDF() {
+      try {
+        const element = document.getElementById('expense-breakdown-table')
+        if (!element) {
+          alert('Please expand the Expense Breakdown section first')
+          return
+        }
+
+        // Capture the table as canvas with high quality
+        const canvas = await html2canvas(element, {
+          scale: 2, // Higher quality
+          backgroundColor: '#ffffff',
+          logging: false,
+          useCORS: true,
+        })
+
+        // Calculate PDF dimensions
+        const imgWidth = 280 // A4 landscape width in mm (minus margins)
+        const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+        // Create PDF in landscape orientation
+        const pdf = new jsPDF({
+          orientation: imgHeight > imgWidth ? 'portrait' : 'landscape',
+          unit: 'mm',
+          format: 'a4',
+        })
+
+        const imgData = canvas.toDataURL('image/png')
+
+        // Center the image on the page
+        const pageWidth = pdf.internal.pageSize.getWidth()
+        const pageHeight = pdf.internal.pageSize.getHeight()
+        const x = (pageWidth - imgWidth) / 2
+        const y = 10
+
+        // Check if content fits on one page
+        if (imgHeight > pageHeight - 20) {
+          // Content is too tall, might need to scale down
+          const scaledHeight = pageHeight - 20
+          const scaledWidth = (canvas.width * scaledHeight) / canvas.height
+          pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight)
+        } else {
+          pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight)
+        }
+
+        // Save the PDF
+        const fileName = `${this.tripName.replace(/\s+/g, '_')}_expense_breakdown.pdf`
+        pdf.save(fileName)
+      } catch (error) {
+        console.error('Error exporting PDF:', error)
+        alert('Failed to export PDF. Please try again.')
+      }
+    },
+
+    async exportBreakdownAsImage() {
+      try {
+        const element = document.getElementById('expense-breakdown-table')
+        if (!element) {
+          alert('Please expand the Expense Breakdown section first')
+          return
+        }
+
+        // Capture the table as canvas with high quality
+        const canvas = await html2canvas(element, {
+          scale: 2, // Retina quality
+          backgroundColor: '#ffffff',
+          logging: false,
+          useCORS: true,
+        })
+
+        // Convert canvas to blob and download
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          const fileName = `${this.tripName.replace(/\s+/g, '_')}_expense_breakdown.png`
+
+          link.href = url
+          link.download = fileName
+          link.style.display = 'none'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        }, 'image/png')
+      } catch (error) {
+        console.error('Error exporting image:', error)
+        alert('Failed to export image. Please try again.')
+      }
     },
 
     importData(event) {
