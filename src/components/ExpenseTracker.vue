@@ -201,18 +201,29 @@
     </div>
 
     <!-- Expenses List -->
+    <div class="mb-3">
+      <label class="form-label">Group By:</label>
+      <select v-model="groupBy" class="form-select" style="max-width: 300px;">
+        <option value="none">No Grouping</option>
+        <option value="date">By Date (Jan 28, Jan 29...)</option>
+        <option value="day">By Day Number (Day 1, Day 2...)</option>
+        <option value="month">By Month (January, February...)</option>
+      </select>
+    </div>
+
     <div class="table-responsive">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Description</th>
-            <th>Amount</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(expense, index) in sortedExpenses" :key="index">
+      <template v-if="groupBy === 'none'">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Description</th>
+              <th>Amount</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(expense, index) in sortedExpenses" :key="index">
             <td>{{ index + 1 }}</td>
             <td>
               <template v-if="editingIndex !== index">
@@ -396,6 +407,215 @@
           </tr>
         </tbody>
       </table>
+      </template>
+
+      <!-- Grouped View -->
+      <template v-else>
+        <div v-for="(group, groupKey) in groupedExpenses" :key="groupKey" class="mb-4">
+          <div class="card">
+            <div class="card-header bg-primary text-white">
+              <h5 class="mb-0">{{ formatGroupHeader(groupKey) }}</h5>
+              <small>{{ group.expenses.length }} expense(s) • Total: {{ formatCurrency(group.total, baseCurrency) }}</small>
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(expense, index) in group.expenses" :key="index">
+                    <td>{{ index + 1 }}</td>
+                    <td>
+                      <template v-if="editingIndex !== expenses.indexOf(expense)">
+                        {{ expense.description }}
+                        <br>
+                        <small class="text-muted">
+                          Paid by: {{ formatPayers(expense) }}
+                          <br>
+                          Split with: {{ formatSplitWith(expense) }}
+                        </small>
+                      </template>
+                      <template v-else>
+                        <div class="row g-2">
+                          <div class="col-md-6">
+                            <input v-model="editingExpense.description" class="form-control form-control-sm" placeholder="Description">
+                          </div>
+                          <div class="col-md-3">
+                            <input v-model.number="editingExpense.amount" type="number"
+                                   class="form-control form-control-sm"
+                                   placeholder="Amount"
+                                   @change="updateEditAmounts">
+                          </div>
+                          <div class="col-md-3">
+                            <input type="date" v-model="editingExpense.date" class="form-control form-control-sm">
+                          </div>
+                        </div>
+
+                        <!-- Currency Section for Edit -->
+                        <div class="mt-2">
+                          <div class="form-check">
+                            <input class="form-check-input" type="checkbox" v-model="editingExpense.useCustomCurrency"
+                                   @change="onEditCustomCurrencyToggle">
+                            <label class="form-check-label">
+                              This expense is in a different currency
+                            </label>
+                          </div>
+                        </div>
+
+                        <div v-if="editingExpense.useCustomCurrency" class="mt-2">
+                          <div class="card bg-light">
+                            <div class="card-body">
+                              <div class="row g-2">
+                                <div class="col-md-4">
+                                  <label class="form-label">Expense Currency</label>
+                                  <select v-model="editingExpense.currency" class="form-select form-select-sm" @change="onEditExpenseCurrencyChange">
+                                    <option v-for="curr in currencies" :key="curr.code" :value="curr.code">
+                                      {{ curr.code }} - {{ curr.name }} ({{ curr.symbol }})
+                                    </option>
+                                  </select>
+                                </div>
+
+                                <div class="col-12">
+                                  <label class="form-label">Exchange Rate Input Method</label>
+                                  <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" id="edit-manual-rate" value="manual"
+                                           v-model="editingExpense.exchangeRateMode" @change="onEditExchangeRateModeChange">
+                                    <label class="btn btn-outline-primary btn-sm" for="edit-manual-rate">Manual Rate</label>
+
+                                    <input type="radio" class="btn-check" id="edit-calculate-rate" value="calculate"
+                                           v-model="editingExpense.exchangeRateMode" @change="onEditExchangeRateModeChange">
+                                    <label class="btn btn-outline-primary btn-sm" for="edit-calculate-rate">Calculate from Amounts</label>
+                                  </div>
+                                </div>
+
+                                <!-- Manual Rate Mode -->
+                                <div v-if="editingExpense.exchangeRateMode === 'manual'" class="col-12">
+                                  <label class="form-label">Exchange Rate</label>
+                                  <div class="input-group input-group-sm">
+                                    <span class="input-group-text">1 {{ editingExpense.currency }} =</span>
+                                    <input type="number" v-model.number="editingExpense.manualRate" class="form-control"
+                                           step="0.000001" @input="onEditManualRateChange">
+                                    <span class="input-group-text">{{ baseCurrency }}</span>
+                                  </div>
+                                  <small class="text-muted">
+                                    Converted: {{ editingExpense.amount }} {{ editingExpense.currency }} =
+                                    {{ formatCurrency(editingExpense.amount * editingExpense.manualRate, baseCurrency) }}
+                                  </small>
+                                </div>
+
+                                <!-- Calculate Rate Mode -->
+                                <div v-if="editingExpense.exchangeRateMode === 'calculate'" class="col-12">
+                                  <div class="row g-2">
+                                    <div class="col-md-5">
+                                      <label class="form-label">Amount in {{ editingExpense.currency }}</label>
+                                      <div class="input-group input-group-sm">
+                                        <input type="number" v-model.number="editingExpense.foreignAmount" class="form-control"
+                                               @input="onEditForeignAmountChange">
+                                        <span class="input-group-text">{{ editingExpense.currency }}</span>
+                                      </div>
+                                    </div>
+                                    <div class="col-md-2 text-center pt-4">
+                                      <strong>=</strong>
+                                    </div>
+                                    <div class="col-md-5">
+                                      <label class="form-label">Amount in {{ baseCurrency }}</label>
+                                      <div class="input-group input-group-sm">
+                                        <input type="number" v-model.number="editingExpense.calculatedBaseAmount" class="form-control"
+                                               @input="onEditCalculatedBaseAmountChange">
+                                        <span class="input-group-text">{{ baseCurrency }}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <small v-if="editingExpense.foreignAmount && editingExpense.calculatedBaseAmount" class="text-muted">
+                                    Exchange rate: 1 {{ editingExpense.currency }} =
+                                    {{ (editingExpense.calculatedBaseAmount / editingExpense.foreignAmount).toFixed(6) }} {{ baseCurrency }}
+                                  </small>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="mt-2">
+                          <label class="form-label mb-1"><strong>Paid By:</strong></label>
+                          <button @click="selectAllPayersEdit" class="btn btn-outline-secondary btn-sm ms-2">Select All</button>
+                          <div class="row g-1">
+                            <div v-for="member in members" :key="member" class="col-md-6">
+                              <div class="input-group input-group-sm">
+                                <div class="input-group-text">
+                                  <input class="form-check-input mt-0" type="checkbox"
+                                         v-model="editingExpense.paidBy"
+                                         :value="member"
+                                         @change="updateEditPaidAmounts">
+                                  <label class="ms-1 mb-0">{{ member }}</label>
+                                </div>
+                                <input v-if="editingExpense.paidBy.includes(member)"
+                                       type="number"
+                                       v-model.number="editingExpense.paidAmounts[member]"
+                                       class="form-control form-control-sm"
+                                       :placeholder="`Amount`">
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="mt-2">
+                          <label class="form-label mb-1"><strong>Split With:</strong></label>
+                          <button @click="selectAllSplitEdit" class="btn btn-outline-secondary btn-sm ms-2">Select All</button>
+                          <div class="row g-1">
+                            <div v-for="member in members" :key="member" class="col-md-6">
+                              <div class="input-group input-group-sm">
+                                <div class="input-group-text">
+                                  <input class="form-check-input mt-0" type="checkbox"
+                                         v-model="editingExpense.splitWith"
+                                         :value="member"
+                                         @change="updateEditSplitAmounts">
+                                  <label class="ms-1 mb-0">{{ member }}</label>
+                                </div>
+                                <input v-if="editingExpense.splitWith.includes(member)"
+                                       type="number"
+                                       v-model.number="editingExpense.splitAmounts[member]"
+                                       class="form-control form-control-sm"
+                                       :placeholder="`Amount`">
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </td>
+                    <td>
+                      <span v-if="editingIndex !== expenses.indexOf(expense)">
+                        {{ formatCurrency(expense.amount, expense.currency || baseCurrency) }}
+                        <span v-if="expense.currency && expense.currency !== baseCurrency" class="text-muted small">
+                          <br>({{ formatCurrency(getBaseAmount(expense), baseCurrency) }})
+                          <br><small>Rate: 1={{ expense.exchangeRate?.toFixed(4) || 1 }}</small>
+                        </span>
+                      </span>
+                      <input v-else v-model.number="editingExpense.amount" type="number"
+                             class="form-control form-control-sm"
+                             @change="updateEditPaidAmounts">
+                    </td>
+                    <td>
+                      <div v-if="editingIndex !== expenses.indexOf(expense)">
+                        <button @click="startEdit(expenses.indexOf(expense))" class="btn btn-warning btn-sm me-1">Edit</button>
+                        <button @click="removeExpense(expenses.indexOf(expense))" class="btn btn-danger btn-sm">Delete</button>
+                      </div>
+                      <div v-else>
+                        <button @click="saveEdit()" class="btn btn-success btn-sm me-1">Save</button>
+                        <button @click="cancelEdit()" class="btn btn-secondary btn-sm">Cancel</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- Summary -->
@@ -640,6 +860,7 @@ export default {
       editingExpense: null,
       sortBy: 'index',
       sortDesc: false,
+      groupBy: 'none',
       showCrossTable: true,
       showPaidForWhom: true,
       showWhoOwesWho: true,
@@ -662,6 +883,63 @@ export default {
         }
         return this.sortDesc ? -comparison : comparison
       })
+    },
+    groupedExpenses() {
+      if (this.groupBy === 'none') {
+        return {}
+      }
+
+      const groups = {}
+      const sortedExpenses = [...this.expenses].sort((a, b) => {
+        return (a.date || '').localeCompare(b.date || '')
+      })
+
+      sortedExpenses.forEach((expense) => {
+        let groupKey = ''
+
+        if (this.groupBy === 'date') {
+          // Group by exact date (YYYY-MM-DD)
+          groupKey = expense.date || 'No Date'
+        } else if (this.groupBy === 'day') {
+          // Group by day number from the first expense
+          const firstDate = this.getFirstExpenseDate()
+          if (expense.date && firstDate) {
+            const expenseDate = new Date(expense.date)
+            const firstExpenseDate = new Date(firstDate)
+            const diffTime = expenseDate - firstExpenseDate
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+            groupKey = `day-${diffDays + 1}`
+          } else {
+            groupKey = 'No Date'
+          }
+        } else if (this.groupBy === 'month') {
+          // Group by month (YYYY-MM)
+          if (expense.date) {
+            const date = new Date(expense.date)
+            groupKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+          } else {
+            groupKey = 'No Date'
+          }
+        }
+
+        if (!groups[groupKey]) {
+          groups[groupKey] = {
+            expenses: [],
+            total: 0
+          }
+        }
+
+        groups[groupKey].expenses.push(expense)
+        groups[groupKey].total += this.getBaseAmount(expense)
+      })
+
+      // Sort groups by key
+      const sortedGroups = {}
+      Object.keys(groups).sort().forEach(key => {
+        sortedGroups[key] = groups[key]
+      })
+
+      return sortedGroups
     },
   },
   methods: {
@@ -1599,6 +1877,49 @@ export default {
         console.error('Error decompressing data:', e)
         return null
       }
+    },
+
+    getFirstExpenseDate() {
+      if (this.expenses.length === 0) return null
+      const datedExpenses = this.expenses.filter(e => e.date)
+      if (datedExpenses.length === 0) return null
+      return datedExpenses.sort((a, b) => a.date.localeCompare(b.date))[0].date
+    },
+
+    formatGroupHeader(groupKey) {
+      if (groupKey === 'No Date') {
+        return 'No Date'
+      }
+
+      if (this.groupBy === 'date') {
+        // Format as "Jan 28, 2026"
+        const date = new Date(groupKey)
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        })
+      } else if (this.groupBy === 'day') {
+        // Format as "Day 1", "Day 2", etc.
+        const dayNumber = groupKey.replace('day-', '')
+        const firstDate = this.getFirstExpenseDate()
+        if (firstDate) {
+          const targetDate = new Date(firstDate)
+          targetDate.setDate(targetDate.getDate() + parseInt(dayNumber) - 1)
+          return `Day ${dayNumber} (${targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
+        }
+        return `Day ${dayNumber}`
+      } else if (this.groupBy === 'month') {
+        // Format as "January 2026"
+        const [year, month] = groupKey.split('-')
+        const date = new Date(year, parseInt(month) - 1, 1)
+        return date.toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric'
+        })
+      }
+
+      return groupKey
     },
   },
   mounted() {
