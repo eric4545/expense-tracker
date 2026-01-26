@@ -462,13 +462,14 @@
               <tr v-for="expense in sortedExpenses" :key="expense.description">
                 <td class="sticky-col">
                   {{ expense.description }}
-                  <span class="text-success fw-bold">
-                    ({{ expense.paidBy }})
-                  </span>
+                  <br>
+                  <small class="text-success fw-bold">
+                    Paid by: {{ formatPayers(expense) }}
+                  </small>
                 </td>
                 <td v-for="member in members" :key="member" class="text-center">
                   <template v-if="expense.splitWith.includes(member)">
-                    <span :class="expense.paidBy === member ? 'text-success fw-bold' : ''">
+                    <span :class="(Array.isArray(expense.paidBy) ? expense.paidBy.includes(member) : expense.paidBy === member) ? 'text-success fw-bold' : ''">
                       {{ formatCurrency(getCrossTableAmount(expense, member), baseCurrency) }}
                     </span>
                   </template>
