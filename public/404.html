@@ -6,9 +6,35 @@
     <script type="text/javascript">
         // GitHub Pages SPA redirect
         // This script takes the current URL and redirects to the root with the path as a query parameter
-        const path = window.location.pathname.split('/').slice(2).join('/');
+        const pathname = window.location.pathname;
         const query = window.location.search;
-        const redirect = '/expense-tracker/?p=/' + path + query;
+
+        // Detect PR preview path or production path (works for any repo name)
+        let basePath;
+        let pathSegments;
+
+        // Try to match PR preview pattern: /repo-name/pr-preview/pr-N/...
+        const prPreviewMatch = pathname.match(/^(\/[^/]+\/pr-preview\/pr-\d+)/);
+        if (prPreviewMatch) {
+            // PR preview path
+            basePath = prPreviewMatch[1];
+            // Extract everything after the PR preview base
+            pathSegments = pathname.substring(basePath.length + 1);
+        } else {
+            // Production path: /repo-name/...
+            const repoMatch = pathname.match(/^\/([^/]+)/);
+            if (repoMatch) {
+                basePath = '/' + repoMatch[1];
+                // Extract everything after the repo name
+                pathSegments = pathname.split('/').slice(2).join('/');
+            } else {
+                // Fallback to root
+                basePath = '';
+                pathSegments = pathname.substring(1);
+            }
+        }
+
+        const redirect = basePath + '/?p=/' + pathSegments + query;
         window.location.replace(redirect);
     </script>
 </head>
